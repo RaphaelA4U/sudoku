@@ -30,8 +30,8 @@ MISTAKE_INFO = {
 }
 
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "difficulty": "medium",     # easy | medium | hard | expert
-    "mistakes": "wrong",        # wrong | conflicts | off
+    "difficulty": "easy",       # easy | medium | hard | expert
+    "mistakes": "off",          # wrong | conflicts | off
     "win_animation": True,      # fireworks when you solve it
     "timer": True,              # show the clock
     "last_seen_version": None,  # for the what's-new note after updates

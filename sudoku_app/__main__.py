@@ -63,7 +63,7 @@ def main() -> None:
         from .config import load_settings
 
         initial = {
-            "difficulty": args.difficulty or str(load_settings().get("difficulty", "medium")),
+            "difficulty": args.difficulty or str(load_settings().get("difficulty", "easy")),
             "seed": args.puzzle,
         }
 

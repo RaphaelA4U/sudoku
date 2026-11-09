@@ -39,11 +39,11 @@ async def test_menu_boots_and_starts_a_game():
         await start(pilot, app, MenuScreen)
         menu = app.screen.query_one(AsciiMenu)
         assert menu.current_item().id == "new"  # no saved game yet
-        await pilot.press("down", "right")  # difficulty medium -> hard
-        assert config.load_settings()["difficulty"] == "hard"
+        await pilot.press("down", "right")  # difficulty easy -> medium
+        assert config.load_settings()["difficulty"] == "medium"
         await pilot.press("up", "enter")
         screen = await start(pilot, app)
-        assert screen.game.difficulty == "hard"
+        assert screen.game.difficulty == "medium"
 
 
 async def test_help_and_stats_pages():
