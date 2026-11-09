@@ -162,3 +162,8 @@ def test_review_spots_guesses_clashes_and_wrong_digits():
     lines = "\n".join(review_lines(g.seed, "easy", grid_text(g.puzzle), grid_text(g.solution), g.log, False))
     assert "clashed with a digit" in lines and "Still wrong on the board" in lines
     assert "Every action" in lines
+
+
+def test_save_carries_race_progress():
+    g = Sudoku(42, "easy")
+    assert g.to_dict()["progress"] == sum(1 for v in g.puzzle if v)

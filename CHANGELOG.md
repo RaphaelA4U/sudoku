@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.1.2 (2026-11-09)
+- Saved games carry a `progress` count (digits filled), so a beheer race reads every race game the same way.
+
 ## v1.1.1 (2026-11-09)
 - Mistakes now default to "show conflicts": a digit turns red when it clashes with its row, column or box, without giving the solution away.
 

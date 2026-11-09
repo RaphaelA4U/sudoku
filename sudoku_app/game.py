@@ -634,6 +634,8 @@ class Sudoku:
             mistakes=self.mistakes,
             hints=self.hints,
             battle=self.battle,
+            # Race contract (BM Beheer chat battles): digits on the board.
+            progress=self.filled(),
             history=self.history[-SAVED_UNDO_LIMIT:],
             log=self.log,
         )
