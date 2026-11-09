@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.0 (2026-11-09)
+- Mistake limit (default 3): the third wrong digit is game over, like sudoku.com; r tries the same puzzle again. The count shows as "Mistakes 1/3". Switch it off in the menu.
+- Highlight (default on): the row, column and box of the selected cell light up.
+- Auto notes is now a setting (default on). Clearing a digit puts back the notes it had removed, so a wrong digit no longer leaves your notes incomplete.
+
 ## v1.1.4 (2026-11-09)
 - A filled cell is no longer overwritten by another digit: clear it first (backspace or 0). A misclick on the digit row now does nothing instead of counting as a mistake.
 

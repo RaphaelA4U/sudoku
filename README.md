@@ -82,6 +82,12 @@ terminals get a roomy grid without them, and very small ones a compact grid.
   is honest.
 - **Mistakes**: hidden (the default), show conflicts (red only on a clash in
   a row, column or box), or show wrong digits (red right away).
+- **Mistake limit**: 3 mistakes (the default) ends the game, like sudoku.com;
+  `r` then tries the same puzzle again. Or off.
+- **Auto notes**: placing a digit removes it from the notes in its row,
+  column and box (default on); clearing the digit puts them back.
+- **Highlight**: the row, column and box of the selected cell light up
+  (default on).
 - **Win animation**: fireworks when you solve it (any key or click skips).
 - **Clock**: shown or hidden. It pauses when the terminal is in the
   background or after two minutes without input.

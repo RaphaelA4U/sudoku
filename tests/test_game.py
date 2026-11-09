@@ -167,3 +167,33 @@ def test_review_spots_guesses_clashes_and_wrong_digits():
 def test_save_carries_race_progress():
     g = Sudoku(42, "easy")
     assert g.to_dict()["progress"] == sum(1 for v in g.puzzle if v)
+
+
+def test_clearing_a_digit_puts_its_notes_back():
+    g = Sudoku(42, "easy")
+    g.fill_notes()
+    cell = g.puzzle.index(0)
+    own = g.notes[cell]
+    d = next(x for x in range(1, 10) if own >> x & 1 and x != g.solution[cell])  # a wrong digit
+    peers_with = [p for p in PEERS[cell] if g.notes[p] >> d & 1]
+    assert peers_with
+    g.set_value(cell, d)
+    assert all(not g.notes[p] >> d & 1 for p in peers_with)
+    g.clear(cell)
+    assert g.notes[cell] == own
+    assert all(g.notes[p] >> d & 1 for p in peers_with)
+
+
+def test_auto_notes_off_keeps_notes_and_replays():
+    g = Sudoku(42, "easy")
+    g.fill_notes()
+    cell = g.puzzle.index(0)
+    d = g.solution[cell]
+    peers_with = [p for p in PEERS[cell] if g.notes[p] >> d & 1]
+    g.set_value(cell, d, clean_notes=False)
+    assert g.log[-1].split("@")[0].endswith("!")
+    assert all(g.notes[p] >> d & 1 for p in peers_with)
+    again = Sudoku.replay(g.seed, g.difficulty, grid_text(g.puzzle), grid_text(g.solution), g.log)
+    assert again.notes == g.notes and again.values == g.values
+    g.restart()
+    assert g.removed == {}

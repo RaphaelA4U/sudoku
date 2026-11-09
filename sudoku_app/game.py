@@ -455,8 +455,13 @@ class Sudoku:
         self.mistakes = 0        # digits placed that differ from the solution
         self.hints = 0           # hints that filled in a cell
         self.battle: Optional[int] = None  # a chat battle id (beheer), when raced
+        self.failed = False      # too many mistakes (the mistake limit was reached)
+        # Notes that placing a digit removed, per cell: [the cell's own notes,
+        # peers that lost that digit as a note]. Clearing the digit puts them back.
+        self.removed: dict[int, list] = {}
         self.history: list[dict] = []
-        # Every action in order, undos included: "v12=5" set, "c12" clear,
+        # Every action in order, undos included: "v12=5" set ("v12=5!" = set
+        # without removing that digit from other notes), "c12" clear,
         # "n12=5" note toggle, "N" fill notes, "h12=5" hint, "R" restart,
         # "u" undo; "@n" = the clock at that moment.
         self.log: list[str] = []
@@ -503,11 +508,14 @@ class Sudoku:
 
     # -- undo / log ------------------------------------------------------
     def _state(self) -> dict[str, Any]:
-        return {"values": grid_text(self.values), "notes": list(self.notes)}
+        return {"values": grid_text(self.values), "notes": list(self.notes),
+                "removed": {str(c): [own, list(peers)] for c, (own, peers) in self.removed.items()}}
 
     def _load_state(self, state: dict[str, Any]) -> None:
         self.values = parse_grid(state["values"])
         self.notes = [int(n) for n in state["notes"]]
+        self.removed = {int(c): [int(v[0]), [int(p) for p in v[1]]]
+                        for c, v in (state.get("removed") or {}).items()}
 
     def _checkpoint(self) -> None:
         self.history.append(self._state())
@@ -529,16 +537,25 @@ class Sudoku:
         return True
 
     # -- actions ---------------------------------------------------------
-    def set_value(self, cell: int, d: int, hint: bool = False) -> bool:
+    def finished(self) -> bool:
+        return self.is_solved() or self.failed
+
+    def set_value(self, cell: int, d: int, hint: bool = False, clean_notes: bool = True) -> bool:
         if self.given(cell) or not 1 <= d <= 9 or self.values[cell] == d:
             return False
         self._checkpoint()
-        self._record(f"{'h' if hint else 'v'}{cell}={d}")
+        self._record(f"{'h' if hint else 'v'}{cell}={d}{'' if clean_notes else '!'}")
+        own = self.notes[cell] if not self.values[cell] else 0
         self.values[cell] = d
         self.notes[cell] = 0
-        bit = 1 << d  # the digit can no longer be a note in its row, column, box
-        for p in PEERS[cell]:
-            self.notes[p] &= ~bit
+        bit = 1 << d
+        peers = []
+        if clean_notes:  # the digit can no longer be a note in its row, column, box
+            for p in PEERS[cell]:
+                if self.notes[p] & bit:
+                    self.notes[p] &= ~bit
+                    peers.append(p)
+        self.removed[cell] = [own, peers]
         if hint:
             self.hints += 1
         elif d != self.solution[cell]:
@@ -550,8 +567,18 @@ class Sudoku:
             return False
         self._checkpoint()
         self._record(f"c{cell}")
+        d = self.values[cell]
         self.values[cell] = 0
         self.notes[cell] = 0
+        own, peers = self.removed.pop(cell, [0, []])
+        if d:
+            # Put back what this digit took away: its own notes, and the notes
+            # of that digit in its row, column and box (where it fits again).
+            self.notes[cell] = own
+            bit = 1 << d
+            for p in peers:
+                if not self.values[p] and not any(self.values[q] == d for q in PEERS[p]):
+                    self.notes[p] |= bit
         return True
 
     def toggle_note(self, cell: int, d: int) -> bool:
@@ -579,6 +606,7 @@ class Sudoku:
         self._record("R")
         self.values = list(self.puzzle)
         self.notes = [0] * 81
+        self.removed = {}
         return True
 
     # -- hints -----------------------------------------------------------
@@ -634,6 +662,7 @@ class Sudoku:
             mistakes=self.mistakes,
             hints=self.hints,
             battle=self.battle,
+            failed=self.failed,
             # Race contract (BM Beheer chat battles): digits on the board.
             progress=self.filled(),
             history=self.history[-SAVED_UNDO_LIMIT:],
@@ -651,6 +680,7 @@ class Sudoku:
         game.mistakes = int(data.get("mistakes", 0))
         game.hints = int(data.get("hints", 0))
         game.battle = int(data["battle"]) if data.get("battle") else None
+        game.failed = bool(data.get("failed", False))
         game.history = list(data.get("history", []))
         game.log = [str(a) for a in data.get("log", [])]
         return game
@@ -673,9 +703,10 @@ class Sudoku:
             elif kind == "c":
                 game.clear(int(rest))
             else:
-                cell, d = (int(x) for x in rest.split("="))
+                keep = rest.endswith("!")
+                cell, d = (int(x) for x in rest.rstrip("!").split("="))
                 if kind == "n":
                     game.toggle_note(cell, d)
                 else:
-                    game.set_value(cell, d, hint=kind == "h")
+                    game.set_value(cell, d, hint=kind == "h", clean_notes=not keep)
         return game

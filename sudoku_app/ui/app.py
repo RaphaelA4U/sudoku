@@ -48,7 +48,7 @@ from ..config import (
     save_settings,
     stats_summary,
 )
-from ..game import COL, DIFFICULTIES, DIFFICULTY_INFO, ROW, Step, Sudoku, grid_text
+from ..game import BOX, COL, DIFFICULTIES, DIFFICULTY_INFO, ROW, Step, Sudoku, grid_text
 from ..review import review_lines
 from ..update import REPO_DIR, check_and_update
 
@@ -427,6 +427,13 @@ HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
   [b]Mistakes[/b]       "show wrong digits" turns a wrong digit red right away,
                  "show conflicts" only when it clashes with its row, column
                  or box, "hidden" never.
+  [b]Mistake limit[/b]  "3 mistakes" (default): the third wrong digit ends the game, as
+                 on sudoku.com; [b]r[/b] then tries the same puzzle again. The count
+                 shows top right. "off": no limit.
+  [b]Auto notes[/b]     on (default): placing a digit removes it from the notes in its
+                 row, column and box. Clearing the digit puts them back.
+  [b]Highlight[/b]      on (default): the row, column and box of the selected cell
+                 light up (their empty spots and notes turn purple).
   [b]Win animation[/b]  fireworks when you solve it; any key or click skips them.
 
 [b u]Hints[/b u]
@@ -522,6 +529,7 @@ class Board(Widget, can_focus=True):
         self.hint: Optional[Step] = None
         self.hover: Optional[tuple[str, int]] = None  # ("cell"|"digit"|"notes", n)
         self.mistake_mode = "off"
+        self.highlight = True
         self.cw, self.ch = BIG_CELL
         self.thin = True  # thin lines between cells inside a box
         self._rects: list[tuple[int, int, int, int, str, int]] = []
@@ -668,6 +676,10 @@ class Board(Widget, can_focus=True):
 
         cur = self.cursor
         cur_digit = g.values[cur]
+        lit = set()
+        if self.highlight and self.banner is None:
+            lit = {i for i in range(81) if i != cur and (ROW[i] == ROW[cur] or COL[i] == COL[cur]
+                                                         or BOX[i] == BOX[cur])}
         bad = self._bad_cells()
         hint_cell = self.hint.place[0] if self.hint and self.hint.place else (
             self.hint.cells[0] if self.hint and self.hint.technique == "mistake" else None)
@@ -727,13 +739,13 @@ class Board(Widget, can_focus=True):
             elif g.notes[cell] and ch >= 3:
                 for d in range(1, 10):
                     if g.notes[cell] >> d & 1:
-                        nstyle = back or (f"bold {WINC}" if d == cur_digit else "dim")
+                        nstyle = back or (f"bold {WINC}" if d == cur_digit else (ACCENT if cell in lit else "dim"))
                         cv.put(x + 1 + 2 * ((d - 1) % 3), y + (d - 1) // 3, str(d), nstyle)
             else:
                 mark = "∙" if g.notes[cell] else "·"
                 in_proof = cell in proof and self.hint is not None
                 cv.put(x + cw // 2, y + ch // 2, mark,
-                       back or (HINT if in_proof else ("bold" if hovered else "dim")))
+                       back or (HINT if in_proof else ("bold" if hovered else (f"bold {ACCENT}" if cell in lit else "dim"))))
             rects.append((x, y, x + cw, y + ch, "cell", cell))
 
         # The digit row: click to fill in; done digits fade.
@@ -814,6 +826,13 @@ FOOTER = [
     ("esc menu", "menu"),
 ]
 
+FOOTER_OVER = [
+    ("r try again", "retry"),
+    ("enter new puzzle", "new"),
+    ("v review", "review"),
+    ("m menu", "menu"),
+]
+
 FOOTER_WON = [
     ("enter new puzzle", "new"),
     ("v review", "review"),
@@ -859,16 +878,25 @@ class GameScreen(Screen):
     def board(self) -> Board:
         return self.query_one(Board)
 
+    def _load_prefs(self) -> None:
+        settings = load_settings()
+        self.board.mistake_mode = str(settings.get("mistakes", "off"))
+        self.board.highlight = bool(settings.get("highlight", True))
+        self.auto_notes = bool(settings.get("auto_notes", True))
+        self.limit = int(settings.get("mistake_limit", 3) or 0)
+
     def on_mount(self) -> None:
         board = self.board
         board.focus()
-        board.mistake_mode = str(load_settings().get("mistakes", "off"))
+        self._load_prefs()
         # Start on the first empty cell.
         board.cursor = next((i for i in range(81) if not self.game.values[i]), 40)
         self.set_interval(1.0, self._tick)
         g = self.game
         if g.is_solved():
             self._won()
+        elif g.failed:
+            self._failed()
         elif g.started:
             self.note(f"Welcome back. Puzzle #{g.seed}, {fmt_time(g.elapsed)} on the clock.")
         else:
@@ -877,7 +905,7 @@ class GameScreen(Screen):
         self._refresh_all()
 
     def on_screen_resume(self) -> None:
-        self.board.mistake_mode = str(load_settings().get("mistakes", "off"))
+        self._load_prefs()
         self._refresh_all()
 
     # -- status ----------------------------------------------------------
@@ -896,15 +924,17 @@ class GameScreen(Screen):
         if g.battle:
             left.append("  Battle", style=f"bold {WINC}")
         right = Text()
-        if self.board.mistake_mode != "off":
+        if self.board.mistake_mode != "off" or self.limit:
             right.append("Mistakes ", style="dim")
             right.append(str(g.mistakes), style="bold red" if g.mistakes else "bold")
+            if self.limit:
+                right.append(f"/{self.limit}", style="dim")
             right.append("   ")
         right.append("Hints ", style="dim")
         right.append(str(g.hints), style="bold")
         if load_settings().get("timer", True):
             right.append("   ")
-            if g.started and not g.is_solved() and not self.app.clock_running():
+            if g.started and not g.finished() and not self.app.clock_running():
                 right.append("paused ", style="dim")
             right.append(fmt_time(g.elapsed), style="bold")
         right.append(" ")
@@ -924,7 +954,7 @@ class GameScreen(Screen):
 
     def _tick(self) -> None:
         g = self.game
-        if not g.started or g.is_solved() or self.app.screen is not self:
+        if not g.started or g.finished() or self.app.screen is not self:
             return
         if self.app.clock_running():
             g.elapsed += 1
@@ -934,7 +964,7 @@ class GameScreen(Screen):
 
     # -- bookkeeping after every action ----------------------------------
     def _save(self) -> None:
-        if self.game.is_solved():
+        if self.game.finished():
             clear_saved_game()
             return
         save_game_snapshot({"version": __version__, "game": self.game.to_dict()})
@@ -942,10 +972,15 @@ class GameScreen(Screen):
     def _after_action(self, keep_hint: bool = False) -> None:
         if not keep_hint:
             self.board.hint = None
+        g = self.game
+        if not g.is_solved() and not g.failed and self.limit and g.mistakes >= self.limit:
+            g.failed = True
         self._save()
         self._refresh_all()
-        if self.game.is_solved():
+        if g.is_solved():
             self._won()
+        elif g.failed:
+            self._failed()
 
     def _stats_entry(self, won: bool) -> dict:
         g = self.game
@@ -976,6 +1011,19 @@ class GameScreen(Screen):
             self.board.start_fireworks("   ".join(parts))
             self._fx_timer = self.set_interval(FX_DT, self._fx_step)
 
+    def _failed(self) -> None:
+        """The mistake limit was reached: game over (like sudoku.com)."""
+        g = self.game
+        if not self.recorded and g.started:
+            self.recorded = True
+            record_game(dict(self._stats_entry(won=False), reason="mistakes"), game=g.to_dict())
+            clear_saved_game()
+        self.board.hint = None
+        self.note(f"[bold red]Game over:[/] {g.mistakes} mistakes. [b]r[/b] try this puzzle again, "
+                  f"[b]enter[/b] a new one, [b]v[/b] review. [dim](Mistake limit in the menu.)[/dim]")
+        self.query_one("#footer-keys", ActionBar).set_segments(FOOTER_OVER)
+        self._refresh_all()
+
     def _fx_step(self) -> None:
         if not self.board.step_fireworks():
             self.stop_fireworks()
@@ -989,7 +1037,7 @@ class GameScreen(Screen):
     def abandon(self) -> None:
         """Count the current puzzle as not solved (when it was started)."""
         g = self.game
-        if self.recorded or not g.started or g.is_solved():
+        if self.recorded or not g.started or g.finished():
             return
         self.recorded = True
         record_game(self._stats_entry(won=False), game=g.to_dict())
@@ -997,11 +1045,11 @@ class GameScreen(Screen):
 
     # -- input -----------------------------------------------------------
     def _editable(self) -> bool:
-        return not self.game.is_solved() and not self.game.given(self.board.cursor)
+        return not self.game.finished() and not self.game.given(self.board.cursor)
 
     def _enter_digit(self, d: int, note: bool = False) -> None:
         g, cell = self.game, self.board.cursor
-        if g.is_solved():
+        if g.finished():
             return
         if g.given(cell):
             self.note("That digit was given; it cannot change.")
@@ -1021,7 +1069,7 @@ class GameScreen(Screen):
             self.note(f"There is a {g.values[cell]} here. Clear it first ([b]backspace[/b] or [b]0[/b]).")
             return
         else:
-            g.set_value(cell, d)
+            g.set_value(cell, d, clean_notes=self.auto_notes)
             if self.board.mistake_mode == "wrong" and g.wrong(cell):
                 self.note(f"[red]The {d} does not belong there.[/]")
             elif g.count(d) == 9 and not g.is_solved():
@@ -1072,6 +1120,7 @@ class GameScreen(Screen):
             "menu": self.action_menu,
             "new": self.action_new,
             "review": self.action_review,
+            "retry": self.action_restart,
             "quit": self.action_quit_app,
         }.get(event.action)
         if action:
@@ -1092,7 +1141,7 @@ class GameScreen(Screen):
         board.refresh()
 
     def action_fill_notes(self) -> None:
-        if self.game.is_solved():
+        if self.game.finished():
             return
         if self.game.fill_notes():
             self.note("Every possible note is pencilled in. [b]u[/b] takes them back.")
@@ -1105,7 +1154,7 @@ class GameScreen(Screen):
             self._after_action()
 
     def action_undo(self) -> None:
-        if self.game.is_solved():
+        if self.game.finished():
             return
         if self.game.undo():
             self.note("Undone.")
@@ -1114,7 +1163,14 @@ class GameScreen(Screen):
             self.note("Nothing to undo.")
 
     def action_restart(self) -> None:
-        if self.game.is_solved():
+        g = self.game
+        if g.failed:
+            # Game over: the same puzzle again, from the start.
+            app = self.app
+            if isinstance(app, SudokuApp):
+                app.new_game(replace=True, seed=g.seed, difficulty=g.difficulty, battle=g.battle)
+            return
+        if g.finished():
             return
         if self.game.restart():
             self.note("Started over. [b]u[/b] brings your digits back.")
@@ -1122,7 +1178,7 @@ class GameScreen(Screen):
 
     def action_hint(self) -> None:
         g, board = self.game, self.board
-        if g.is_solved():
+        if g.finished():
             return
         step = board.hint
         if step is not None:
@@ -1149,7 +1205,7 @@ class GameScreen(Screen):
         self._refresh_all()
 
     def action_enter(self) -> None:
-        if self.game.is_solved():
+        if self.game.finished():
             self.action_new()
 
     def action_new(self) -> None:
@@ -1166,7 +1222,7 @@ class GameScreen(Screen):
         self.action_menu()
 
     def action_menu(self) -> None:
-        if not self.game.is_solved():
+        if not self.game.finished():
             self._save()
         self.app.pop_screen()
 
@@ -1180,7 +1236,7 @@ class GameScreen(Screen):
             "solution": grid_text(g.solution), "log": list(g.log), "won": g.is_solved()}))
 
     def action_quit_app(self) -> None:
-        if not self.game.is_solved():
+        if not self.game.finished():
             self._save()
         self.app.exit()
 
@@ -1193,6 +1249,9 @@ MENU_INFO = {
     "continue": "Pick up your saved puzzle right where you left it.",
     "new": "A new puzzle at the difficulty below.",
     "anim": "Fireworks when you solve it (any key or click skips them).",
+    "limit": "Game over after 3 mistakes (a wrong digit counts, also when mistakes are hidden).",
+    "autonotes": "Placing a digit removes it from the notes in its row, column and box.",
+    "highlight": "Light up the row, column and box of the selected cell.",
     "timer": "Show the clock while you play.",
     "whatsnew": "What changed in recent updates.",
     "help": "Rules, keys and mouse, hints.",
@@ -1243,6 +1302,12 @@ class MenuScreen(Screen):
                      index=DIFFICULTIES.index(diff) if diff in DIFFICULTIES else 1),
             MenuItem("mistakes", "Mistakes", "choice", [(MISTAKE_LABELS[m], m) for m in MISTAKE_MODES],
                      index=MISTAKE_MODES.index(mistakes) if mistakes in MISTAKE_MODES else 2),
+            MenuItem("limit", "Mistake limit", "choice", [("3 mistakes", 3), ("off", 0)],
+                     index=0 if int(settings.get("mistake_limit", 3) or 0) else 1),
+            MenuItem("autonotes", "Auto notes", "choice", [("on", True), ("off", False)],
+                     index=0 if settings.get("auto_notes", True) else 1),
+            MenuItem("highlight", "Highlight", "choice", [("on", True), ("off", False)],
+                     index=0 if settings.get("highlight", True) else 1),
             MenuItem("anim", "Win animation", "choice", [("on", True), ("off", False)],
                      index=0 if settings.get("win_animation", True) else 1),
             MenuItem("timer", "Clock", "choice", [("shown", True), ("hidden", False)],
@@ -1329,7 +1394,8 @@ class MenuScreen(Screen):
     @on(AsciiMenu.Changed)
     def _changed(self, event: AsciiMenu.Changed) -> None:
         settings = load_settings()
-        key = {"difficulty": "difficulty", "mistakes": "mistakes",
+        key = {"difficulty": "difficulty", "mistakes": "mistakes", "limit": "mistake_limit",
+               "autonotes": "auto_notes", "highlight": "highlight",
                "anim": "win_animation", "timer": "timer"}.get(event.item_id)
         if key:
             settings[key] = event.value
@@ -1484,7 +1550,7 @@ class SudokuApp(App):
         except Exception:  # noqa: BLE001 - unreadable save: just drop it
             clear_saved_game()
             return
-        if game.started and not game.is_solved():
+        if game.started and not game.finished():
             record_game(
                 {"won": False, "difficulty": game.difficulty, "time": int(game.elapsed),
                  "mistakes": game.mistakes, "hints": game.hints, "seed": game.seed,

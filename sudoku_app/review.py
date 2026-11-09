@@ -63,7 +63,7 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
         kind, rest = action[0], action[1:]
         text, style = action, ""
         if kind in "vh":
-            cell, d = (int(x) for x in rest.split("="))
+            cell, d = (int(x) for x in rest.rstrip("!").split("="))
             how, options = _forced(game.values, sol, cell, d)
             clash = _clashes(game.values, sol, cell, d)
             ok = d == sol[cell]

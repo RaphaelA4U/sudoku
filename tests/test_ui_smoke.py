@@ -310,3 +310,50 @@ async def test_filled_cell_is_not_overwritten():
         assert g.values[cell] == right and g.mistakes == 0
         await pilot.press("backspace", str(other))
         assert g.values[cell] == other and g.mistakes == 1
+
+
+async def test_three_mistakes_is_game_over_and_r_tries_again():
+    app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 4})
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        g = screen.game
+        cells = empties(g)
+        for cell in cells[:3]:
+            await goto(pilot, screen, cell)
+            await pilot.press(str(g.solution[cell] % 9 + 1))
+        assert g.failed and "Game over" in screen._note_text
+        assert "Mistakes 3/3" in screen._status_text().plain
+        await pilot.press(str(g.solution[cells[3]]))  # nothing happens any more
+        assert not g.values[cells[3]]
+        entry = config.load_stats()["games"][-1]
+        assert entry["won"] is False and entry["reason"] == "mistakes"
+        await pilot.press("r")
+        for _ in range(100):
+            await pilot.pause(0.05)
+            if isinstance(app.screen, GameScreen) and app.screen.game is not g:
+                break
+        fresh = app.screen.game
+        assert fresh.seed == 4 and fresh.mistakes == 0 and not fresh.failed and not fresh.started
+
+
+async def test_mistake_limit_off_and_highlight():
+    config.save_settings(dict(config.load_settings(), mistake_limit=0))
+    app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 4})
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        g = screen.game
+        for cell in empties(g)[:4]:
+            await goto(pilot, screen, cell)
+            await pilot.press(str(g.solution[cell] % 9 + 1))
+        assert g.mistakes == 4 and not g.failed
+        # The row/column/box of the cursor light up: a purple dot in an empty peer.
+        board = screen.board
+        cell = empties(g)[10]
+        board.cursor = cell
+        def purple_dots():
+            text = board.render()
+            return sum(1 for sp in text.spans if str(sp.style) == "bold #875fff"
+                       and "·" in text.plain[sp.start:sp.end])
+        lit = purple_dots()
+        board.highlight = False
+        assert lit > 0 and purple_dots() == 0

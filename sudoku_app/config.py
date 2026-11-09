@@ -32,6 +32,9 @@ MISTAKE_INFO = {
 DEFAULT_SETTINGS: dict[str, Any] = {
     "difficulty": "medium",     # easy | medium | hard | expert
     "mistakes": "off",          # wrong | conflicts | off
+    "mistake_limit": 3,         # game over after this many mistakes; 0 = no limit
+    "auto_notes": True,         # placing a digit removes it from notes in its row, column, box
+    "highlight": True,          # light up the row, column and box of the selected cell
     "win_animation": True,      # fireworks when you solve it
     "timer": True,              # show the clock
     "last_seen_version": None,  # for the what's-new note after updates
