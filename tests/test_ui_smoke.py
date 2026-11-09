@@ -291,3 +291,22 @@ async def test_defaults_medium_and_mistakes_hidden():
         await goto(pilot, screen, cell)
         await pilot.press(str(g.puzzle[peer]))
         assert screen.board.mistake_mode == "off" and not screen.board._bad_cells()
+
+
+async def test_filled_cell_is_not_overwritten():
+    app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 3})
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        g = screen.game
+        cell = empties(g)[0]
+        right = g.solution[cell]
+        other = right % 9 + 1
+        await goto(pilot, screen, cell)
+        await pilot.press(str(right), str(other))
+        assert g.values[cell] == right and g.mistakes == 0
+        assert "Clear it first" in screen._note_text
+        digit = next(r for r in screen.board._rects if r[4] == "digit" and r[5] == other)
+        await pilot.click(Board, offset=(digit[0] + 1, digit[1]))  # misclick on the digit row
+        assert g.values[cell] == right and g.mistakes == 0
+        await pilot.press("backspace", str(other))
+        assert g.values[cell] == other and g.mistakes == 1

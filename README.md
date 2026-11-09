@@ -51,7 +51,7 @@ exactly once. Every puzzle has exactly one solution.
 | Keys | |
 |---|---|
 | arrows | move around the grid |
-| 1 to 9 | fill in a digit (the same digit again clears it) |
+| 1 to 9 | fill in a digit (the same digit again clears it; a filled cell must be cleared first) |
 | n | notes mode on/off: 1 to 9 then pencil small notes |
 | shift + 1 to 9 | pencil a note right away, in either mode |
 | 0 / backspace / x | clear the cell |

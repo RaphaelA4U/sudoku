@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.1.4 (2026-11-09)
+- A filled cell is no longer overwritten by another digit: clear it first (backspace or 0). A misclick on the digit row now does nothing instead of counting as a mistake.
+
 ## v1.1.3 (2026-11-09)
 - New defaults: difficulty medium, mistakes hidden. Settings you already chose stay as they are.
 

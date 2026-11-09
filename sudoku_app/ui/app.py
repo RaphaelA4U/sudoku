@@ -396,7 +396,8 @@ HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
 
 [b u]Keys[/b u]
   [b]arrows[/b]         move around the grid
-  [b]1-9[/b]            fill in a digit (the same digit again clears it)
+  [b]1-9[/b]            fill in a digit (the same digit again clears it; another
+                 digit needs the cell cleared first, so a misclick does nothing)
   [b]n[/b]              notes mode on/off: 1-9 then pencil in small notes
   [b]shift+1-9[/b]      pencil a note right away, in either mode
   [b]0 backspace x[/b]  clear the cell
@@ -1014,6 +1015,11 @@ class GameScreen(Screen):
             return
         if g.values[cell] == d:
             g.clear(cell)
+        elif g.values[cell]:
+            # No overwriting: a misclick on the digit row must not replace a
+            # digit (and count as a mistake). Clear the cell first.
+            self.note(f"There is a {g.values[cell]} here. Clear it first ([b]backspace[/b] or [b]0[/b]).")
+            return
         else:
             g.set_value(cell, d)
             if self.board.mistake_mode == "wrong" and g.wrong(cell):
