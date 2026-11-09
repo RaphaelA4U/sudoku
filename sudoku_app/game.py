@@ -400,6 +400,11 @@ def _rate_at_most(puzzle: list[int], max_level: int) -> bool:
     return True
 
 
+def battle_seed(battle: int) -> int:
+    """The puzzle number for a chat battle: the same for every player."""
+    return (int(battle) * 7919) % 999_999 + 1
+
+
 def generate(seed: int, difficulty: str) -> tuple[list[int], list[int]]:
     """(puzzle, solution) for this number and difficulty; always the same pair."""
     rng = random.Random(seed * 10 + DIFFICULTIES.index(difficulty))
@@ -449,6 +454,7 @@ class Sudoku:
         self.started = False
         self.mistakes = 0        # digits placed that differ from the solution
         self.hints = 0           # hints that filled in a cell
+        self.battle: Optional[int] = None  # a chat battle id (beheer), when raced
         self.history: list[dict] = []
         # Every action in order, undos included: "v12=5" set, "c12" clear,
         # "n12=5" note toggle, "N" fill notes, "h12=5" hint, "R" restart,
@@ -627,6 +633,7 @@ class Sudoku:
             started=self.started,
             mistakes=self.mistakes,
             hints=self.hints,
+            battle=self.battle,
             history=self.history[-SAVED_UNDO_LIMIT:],
             log=self.log,
         )
@@ -641,6 +648,7 @@ class Sudoku:
         game.started = bool(data.get("started", False))
         game.mistakes = int(data.get("mistakes", 0))
         game.hints = int(data.get("hints", 0))
+        game.battle = int(data["battle"]) if data.get("battle") else None
         game.history = list(data.get("history", []))
         game.log = [str(a) for a in data.get("log", [])]
         return game

@@ -150,3 +150,15 @@ def test_save_roundtrip_and_replay():
     assert again.values == g.values and again.notes == g.notes
     assert (again.mistakes, again.hints) == (g.mistakes, g.hints)
     assert g.log[-1].startswith("h") and "@" in g.log[-1]
+
+
+def test_review_spots_guesses_clashes_and_wrong_digits():
+    from sudoku_app.review import review_lines
+
+    g = Sudoku(723983, "easy")
+    cell = g.puzzle.index(0)
+    given_peer = next(p for p in PEERS[cell] if g.puzzle[p])
+    g.set_value(cell, g.puzzle[given_peer])  # clashes with a given digit
+    lines = "\n".join(review_lines(g.seed, "easy", grid_text(g.puzzle), grid_text(g.solution), g.log, False))
+    assert "clashed with a digit" in lines and "Still wrong on the board" in lines
+    assert "Every action" in lines

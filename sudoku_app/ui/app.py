@@ -40,6 +40,7 @@ from ..config import (
     MISTAKE_LABELS,
     MISTAKE_MODES,
     clear_saved_game,
+    load_game_logs,
     load_game_snapshot,
     load_settings,
     record_game,
@@ -47,7 +48,8 @@ from ..config import (
     save_settings,
     stats_summary,
 )
-from ..game import COL, DIFFICULTIES, DIFFICULTY_INFO, ROW, Step, Sudoku
+from ..game import COL, DIFFICULTIES, DIFFICULTY_INFO, ROW, Step, Sudoku, grid_text
+from ..review import review_lines
 from ..update import REPO_DIR, check_and_update
 
 ACCENT = "#875fff"   # Claude-style purple, leaning slightly blue
@@ -380,6 +382,12 @@ class TextPage(Screen):
         self.app.pop_screen()
 
 
+def review_page(entry: dict) -> TextPage:
+    lines = review_lines(int(entry["seed"]), str(entry.get("difficulty", "easy")), str(entry["puzzle"]),
+                         str(entry["solution"]), list(entry.get("log") or []), bool(entry.get("won")))
+    return TextPage("Review", "\n".join(lines))
+
+
 HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
 
 [b u]Goal[/b u]
@@ -396,6 +404,7 @@ HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
   [b]h[/b]              hint: shows the next step and why; [b]h[/b] again fills it in
   [b]u ctrl+z[/b]       undo (as often as you like)
   [b]r[/b]              start this puzzle over (undo brings it back)
+  [b]v[/b]              review: every move so far, what was forced and what was a guess
   [b]esc[/b]            back to the menu (the game is saved)
   [b]?[/b]              this help
   [b]ctrl+q[/b]         quit (the game is saved)
@@ -806,6 +815,7 @@ FOOTER = [
 
 FOOTER_WON = [
     ("enter new puzzle", "new"),
+    ("v review", "review"),
     ("m menu", "menu"),
     ("ctrl+q quit", "quit"),
 ]
@@ -825,6 +835,7 @@ class GameScreen(Screen):
         Binding("0,backspace,delete,x", "clear", show=False),
         Binding("enter", "enter", show=False),
         Binding("m", "menu", show=False),
+        Binding("v", "review", show=False),
         Binding("escape", "escape", show=False),
         Binding("question_mark,f1", "help", show=False),
         Binding("ctrl+q", "quit_app", show=False),
@@ -881,6 +892,8 @@ class GameScreen(Screen):
         left = Text(" ")
         left.append("SUDOKU", style=f"bold {ACCENT}")
         left.append(f"  Puzzle #{g.seed}  {g.difficulty.capitalize()}", style="dim")
+        if g.battle:
+            left.append("  Battle", style=f"bold {WINC}")
         right = Text()
         if self.board.mistake_mode != "off":
             right.append("Mistakes ", style="dim")
@@ -942,6 +955,7 @@ class GameScreen(Screen):
             "mistakes": g.mistakes,
             "hints": g.hints,
             "seed": g.seed,
+            **({"battle": g.battle} if g.battle else {}),
         }
 
     def _won(self) -> None:
@@ -1051,6 +1065,7 @@ class GameScreen(Screen):
             "help": self.action_help,
             "menu": self.action_menu,
             "new": self.action_new,
+            "review": self.action_review,
             "quit": self.action_quit_app,
         }.get(event.action)
         if action:
@@ -1152,6 +1167,12 @@ class GameScreen(Screen):
     def action_help(self) -> None:
         self.app.push_screen(TextPage("Help", HELP_TEXT))
 
+    def action_review(self) -> None:
+        g = self.game
+        self.app.push_screen(review_page({
+            "seed": g.seed, "difficulty": g.difficulty, "puzzle": grid_text(g.puzzle),
+            "solution": grid_text(g.solution), "log": list(g.log), "won": g.is_solved()}))
+
     def action_quit_app(self) -> None:
         if not self.game.is_solved():
             self._save()
@@ -1170,6 +1191,7 @@ MENU_INFO = {
     "whatsnew": "What changed in recent updates.",
     "help": "Rules, keys and mouse, hints.",
     "stats": "Solved puzzles, streaks, best times per difficulty.",
+    "review": "Every move of your last puzzle: what was forced, what was a guess.",
     "quit": "See you next time.",
 }
 
@@ -1221,6 +1243,7 @@ class MenuScreen(Screen):
                      index=0 if settings.get("timer", True) else 1),
             MenuItem("whatsnew", "What's new"),
             MenuItem("help", "Help"),
+            MenuItem("review", "Review last game"),
             MenuItem("stats", "Statistics"),
             MenuItem("quit", "Quit"),
         ]
@@ -1263,6 +1286,7 @@ class MenuScreen(Screen):
         menu = self.query_one(AsciiMenu)
         snap = load_game_snapshot()
         menu.set_visible("continue", bool(snap and snap.get("game")))
+        menu.set_visible("review", bool(load_game_logs()))
         self._update_info()
 
     def say(self, text: str) -> None:
@@ -1320,6 +1344,10 @@ class MenuScreen(Screen):
             self.action_help()
         elif event.item_id == "stats":
             app.push_screen(TextPage("Statistics", "\n".join(stats_summary())))
+        elif event.item_id == "review":
+            logs = [g for g in load_game_logs() if g.get("puzzle") and g.get("solution")]
+            if logs:
+                app.push_screen(review_page(logs[-1]))
         elif event.item_id == "quit":
             app.exit()
 
@@ -1410,7 +1438,9 @@ class SudokuApp(App):
     def on_mount(self) -> None:
         self.push_screen(MenuScreen())
         if self.initial:
-            self.new_game(seed=self.initial.get("seed"), difficulty=self.initial.get("difficulty"))
+            if not self._resume_same_puzzle():
+                self.new_game(seed=self.initial.get("seed"), difficulty=self.initial.get("difficulty"),
+                              battle=self.initial.get("battle"))
         elif self.resume:
             self.continue_game()
         self._whats_new()
@@ -1418,6 +1448,20 @@ class SudokuApp(App):
             self._update_check()
 
     # -- games -----------------------------------------------------------
+    def _resume_same_puzzle(self) -> bool:
+        """`--puzzle N` while a saved game of that same puzzle is waiting (a
+        chat battle reopened, a restarted terminal): carry on with it instead
+        of starting over and counting the saved one as not solved."""
+        init = self.initial or {}
+        snap = (load_game_snapshot() or {}).get("game") or {}
+        if init.get("battle"):
+            return snap.get("battle") == init["battle"] and self.continue_game()
+        if init.get("seed") is None or snap.get("seed") != init.get("seed"):
+            return False
+        if init.get("difficulty") and snap.get("difficulty") != init.get("difficulty"):
+            return False
+        return self.continue_game()
+
     def _game_screen(self) -> Optional[GameScreen]:
         return next((s for s in self.screen_stack if isinstance(s, GameScreen)), None)
 
@@ -1437,7 +1481,8 @@ class SudokuApp(App):
         if game.started and not game.is_solved():
             record_game(
                 {"won": False, "difficulty": game.difficulty, "time": int(game.elapsed),
-                 "mistakes": game.mistakes, "hints": game.hints, "seed": game.seed},
+                 "mistakes": game.mistakes, "hints": game.hints, "seed": game.seed,
+                 **({"battle": game.battle} if game.battle else {})},
                 game=game.to_dict(),
             )
         clear_saved_game()
@@ -1450,7 +1495,7 @@ class SudokuApp(App):
             screen.say(text)
 
     def new_game(self, replace: bool = False, seed: Optional[int] = None,
-                 difficulty: Optional[str] = None) -> None:
+                 difficulty: Optional[str] = None, battle: Optional[int] = None) -> None:
         settings = load_settings()
         difficulty = difficulty or str(settings.get("difficulty", "easy"))
         if difficulty not in DIFFICULTIES:
@@ -1458,11 +1503,12 @@ class SudokuApp(App):
         if seed is None:
             seed = random.SystemRandom().randint(1, 999_999)
         self._say(f"Making a {difficulty} puzzle...")
-        self._make_puzzle(seed, difficulty, replace)
+        self._make_puzzle(seed, difficulty, replace, battle)
 
     @work(thread=True, exclusive=True, group="puzzle")
-    def _make_puzzle(self, seed: int, difficulty: str, replace: bool) -> None:
+    def _make_puzzle(self, seed: int, difficulty: str, replace: bool, battle: Optional[int] = None) -> None:
         game = Sudoku(seed, difficulty)  # a fraction of a second, even for expert
+        game.battle = battle
         self.call_from_thread(self._start_game, game, replace)
 
     def _start_game(self, game: Sudoku, replace: bool) -> None:

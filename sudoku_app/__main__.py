@@ -29,6 +29,10 @@ def main() -> None:
         "--puzzle", type=int, metavar="N",
         help="play puzzle number N (1-999999); the same number and difficulty is the same puzzle",
     )
+    parser.add_argument(
+        "--battle", type=int, metavar="ID",
+        help="play chat battle ID (from beheer): everyone gets the same puzzle",
+    )
     args = parser.parse_args()
 
     if args.profile:
@@ -59,7 +63,12 @@ def main() -> None:
         parser.error("puzzle numbers run from 1 to 999999")
 
     initial = None
-    if args.new or args.difficulty or args.puzzle is not None:
+    if args.battle is not None:
+        from .game import battle_seed
+
+        initial = {"difficulty": args.difficulty or "easy", "seed": battle_seed(args.battle),
+                   "battle": args.battle}
+    elif args.new or args.difficulty or args.puzzle is not None:
         from .config import load_settings
 
         initial = {

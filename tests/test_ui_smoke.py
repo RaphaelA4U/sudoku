@@ -221,3 +221,59 @@ async def test_clock_pauses_in_background_and_when_idle():
         app.last_input -= 1000
         screen._tick()
         assert g.elapsed == t + 2
+
+
+async def test_review_in_game_and_from_menu():
+    app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 3})
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        g = screen.game
+        cells = empties(g)
+        await goto(pilot, screen, cells[0])
+        await pilot.press(str(g.solution[cells[0]] % 9 + 1))  # a wrong digit
+        await pilot.press("v")
+        assert isinstance(app.screen, TextPage)
+        body = str(app.screen.query_one("#page-body").render())
+        assert "Every action" in body and "wrong, it is" in body
+        await pilot.press("escape", "escape")
+        await start(pilot, app, MenuScreen)
+        await pilot.press("down", "enter")  # New game: the old one is recorded
+        await start(pilot, app)
+        await pilot.press("escape")
+        await start(pilot, app, MenuScreen)
+        assert app.screen.query_one(AsciiMenu).item("review").visible
+
+
+async def test_same_puzzle_number_resumes_the_saved_game():
+    app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 61})
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        cell = empties(screen.game)[0]
+        await goto(pilot, screen, cell)
+        await pilot.press("4", "escape")
+        await pilot.pause()
+    app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 61})
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        assert screen.game.values[cell] == 4
+    assert config.load_stats()["games"] == []
+
+
+async def test_battle_puzzle_is_shared_and_resumes():
+    from sudoku_app.game import battle_seed
+
+    init = {"difficulty": "easy", "seed": battle_seed(12), "battle": 12}
+    app = SudokuApp(no_update=True, initial=dict(init))
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        g = screen.game
+        assert g.battle == 12 and g.seed == battle_seed(12) and "Battle" in screen._status_text().plain
+        cell = empties(g)[0]
+        await goto(pilot, screen, cell)
+        await pilot.press(str(g.solution[cell]), "escape")
+        await pilot.pause()
+    assert config.load_game_snapshot()["game"]["battle"] == 12
+    app = SudokuApp(no_update=True, initial=dict(init))
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        assert screen.game.battle == 12 and screen.game.values[cell]

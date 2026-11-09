@@ -59,6 +59,7 @@ exactly once. Every puzzle has exactly one solution.
 | h | hint: the next step and why; h again fills it in |
 | u / ctrl+z | undo |
 | r | start the puzzle over (undo brings it back) |
+| v | review: every move, what was forced and what was a guess |
 | esc | back to the menu (auto-saved) |
 | ? | help, F2 screenshot (SVG into Downloads) |
 
@@ -93,6 +94,7 @@ sudoku --new                      a new puzzle right away
 sudoku --difficulty expert        easy | medium | hard | expert
 sudoku --puzzle 42                a specific puzzle
 sudoku --resume                   reopen the saved puzzle
+sudoku --battle ID                a beheer chat battle: the same puzzle for everyone
 sudoku --profile NAME             separate settings, stats, and save
 ```
 
