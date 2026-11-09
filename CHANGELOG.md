@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.0.2 (2026-11-09)
+- Hovering over a cell shows four small corners around it, instead of underlining the big digit.
+
 ## v1.0.1 (2026-11-09)
 - New defaults: difficulty easy, mistakes hidden. Settings you already chose stay as they are.
 

@@ -694,7 +694,17 @@ class Board(Widget, can_focus=True):
                     cv.put(x, y + r, " " * cw, back)
                 style = f"bold {back}"
             elif hovered:
-                style = f"{style} underline".strip()
+                # Small corner marks around the cell under the mouse (an
+                # underline would cut through the big digits).
+                mark = f"bold {ACCENT}"
+                if ch >= 3:
+                    cv.put(x, y, "┌", mark)
+                    cv.put(x + cw - 1, y, "┐", mark)
+                    cv.put(x, y + ch - 1, "└", mark)
+                    cv.put(x + cw - 1, y + ch - 1, "┘", mark)
+                else:
+                    cv.put(x, y, "[", mark)
+                    cv.put(x + cw - 1, y, "]", mark)
             # Contents.
             if v:
                 if ch >= 3:
