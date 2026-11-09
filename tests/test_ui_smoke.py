@@ -39,11 +39,11 @@ async def test_menu_boots_and_starts_a_game():
         await start(pilot, app, MenuScreen)
         menu = app.screen.query_one(AsciiMenu)
         assert menu.current_item().id == "new"  # no saved game yet
-        await pilot.press("down", "right")  # difficulty easy -> medium
-        assert config.load_settings()["difficulty"] == "medium"
+        await pilot.press("down", "right")  # difficulty medium -> hard
+        assert config.load_settings()["difficulty"] == "hard"
         await pilot.press("up", "enter")
         screen = await start(pilot, app)
-        assert screen.game.difficulty == "medium"
+        assert screen.game.difficulty == "hard"
 
 
 async def test_help_and_stats_pages():
@@ -279,8 +279,9 @@ async def test_battle_puzzle_is_shared_and_resumes():
         assert screen.game.battle == 12 and screen.game.values[cell]
 
 
-async def test_conflicts_are_shown_by_default():
-    assert config.DEFAULT_SETTINGS["mistakes"] == "conflicts"
+async def test_defaults_medium_and_mistakes_hidden():
+    assert config.DEFAULT_SETTINGS["difficulty"] == "medium"
+    assert config.DEFAULT_SETTINGS["mistakes"] == "off"
     app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 3})
     async with app.run_test(size=SIZE) as pilot:
         screen = await start(pilot, app)
@@ -289,4 +290,4 @@ async def test_conflicts_are_shown_by_default():
         peer = next(p for p in __import__("sudoku_app.game", fromlist=["PEERS"]).PEERS[cell] if g.puzzle[p])
         await goto(pilot, screen, cell)
         await pilot.press(str(g.puzzle[peer]))
-        assert screen.board.mistake_mode == "conflicts" and cell in screen.board._bad_cells()
+        assert screen.board.mistake_mode == "off" and not screen.board._bad_cells()

@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.1.3 (2026-11-09)
+- New defaults: difficulty medium, mistakes hidden. Settings you already chose stay as they are.
+
 ## v1.1.2 (2026-11-09)
 - Saved games carry a `progress` count (digits filled), so a beheer race reads every race game the same way.
 

@@ -76,12 +76,12 @@ terminals get a roomy grid without them, and very small ones a compact grid.
 
 ## Options
 
-- **Difficulty**: easy (the default) and medium only need looking around
+- **Difficulty**: easy and medium (the default) only need looking around
   (singles); hard needs pairs and pointing; expert needs X-wings, triples
   and XY-wings. A built-in logical solver rates every puzzle, so the label
   is honest.
-- **Mistakes**: show conflicts (the default: red only on a clash in a row,
-  column or box), show wrong digits (red right away), or hidden.
+- **Mistakes**: hidden (the default), show conflicts (red only on a clash in
+  a row, column or box), or show wrong digits (red right away).
 - **Win animation**: fireworks when you solve it (any key or click skips).
 - **Clock**: shown or hidden. It pauses when the terminal is in the
   background or after two minutes without input.
