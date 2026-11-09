@@ -520,7 +520,7 @@ class Board(Widget, can_focus=True):
         self.notes_mode = False
         self.hint: Optional[Step] = None
         self.hover: Optional[tuple[str, int]] = None  # ("cell"|"digit"|"notes", n)
-        self.mistake_mode = "off"
+        self.mistake_mode = "conflicts"
         self.cw, self.ch = BIG_CELL
         self.thin = True  # thin lines between cells inside a box
         self._rects: list[tuple[int, int, int, int, str, int]] = []
@@ -861,7 +861,7 @@ class GameScreen(Screen):
     def on_mount(self) -> None:
         board = self.board
         board.focus()
-        board.mistake_mode = str(load_settings().get("mistakes", "off"))
+        board.mistake_mode = str(load_settings().get("mistakes", "conflicts"))
         # Start on the first empty cell.
         board.cursor = next((i for i in range(81) if not self.game.values[i]), 40)
         self.set_interval(1.0, self._tick)
@@ -876,7 +876,7 @@ class GameScreen(Screen):
         self._refresh_all()
 
     def on_screen_resume(self) -> None:
-        self.board.mistake_mode = str(load_settings().get("mistakes", "off"))
+        self.board.mistake_mode = str(load_settings().get("mistakes", "conflicts"))
         self._refresh_all()
 
     # -- status ----------------------------------------------------------
@@ -1229,14 +1229,14 @@ class MenuScreen(Screen):
     def compose(self) -> ComposeResult:
         settings = load_settings()
         diff = settings.get("difficulty", "easy")
-        mistakes = settings.get("mistakes", "off")
+        mistakes = settings.get("mistakes", "conflicts")
         items = [
             MenuItem("continue", "Continue game"),
             MenuItem("new", "New game"),
             MenuItem("difficulty", "Difficulty", "choice", [(d, d) for d in DIFFICULTIES],
                      index=DIFFICULTIES.index(diff) if diff in DIFFICULTIES else 0),
             MenuItem("mistakes", "Mistakes", "choice", [(MISTAKE_LABELS[m], m) for m in MISTAKE_MODES],
-                     index=MISTAKE_MODES.index(mistakes) if mistakes in MISTAKE_MODES else 2),
+                     index=MISTAKE_MODES.index(mistakes) if mistakes in MISTAKE_MODES else 1),
             MenuItem("anim", "Win animation", "choice", [("on", True), ("off", False)],
                      index=0 if settings.get("win_animation", True) else 1),
             MenuItem("timer", "Clock", "choice", [("shown", True), ("hidden", False)],

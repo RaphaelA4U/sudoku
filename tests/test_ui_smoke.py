@@ -277,3 +277,16 @@ async def test_battle_puzzle_is_shared_and_resumes():
     async with app.run_test(size=SIZE) as pilot:
         screen = await start(pilot, app)
         assert screen.game.battle == 12 and screen.game.values[cell]
+
+
+async def test_conflicts_are_shown_by_default():
+    assert config.DEFAULT_SETTINGS["mistakes"] == "conflicts"
+    app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 3})
+    async with app.run_test(size=SIZE) as pilot:
+        screen = await start(pilot, app)
+        g = screen.game
+        cell = empties(g)[0]
+        peer = next(p for p in __import__("sudoku_app.game", fromlist=["PEERS"]).PEERS[cell] if g.puzzle[p])
+        await goto(pilot, screen, cell)
+        await pilot.press(str(g.puzzle[peer]))
+        assert screen.board.mistake_mode == "conflicts" and cell in screen.board._bad_cells()

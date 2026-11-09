@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.1.1 (2026-11-09)
+- Mistakes now default to "show conflicts": a digit turns red when it clashes with its row, column or box, without giving the solution away.
+
 ## v1.1.0 (2026-11-09)
 - Review (v, or "Review last game" in the menu): every move, which digits were forced and which were a guess, clashes, the digits still wrong, the longest pauses, and tips.
 - Chat battles: `sudoku --battle ID` gives everyone of a beheer battle the same puzzle; reopening carries on with it.

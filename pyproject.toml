@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sudoku-tui"
-version = "1.1.0"
+version = "1.1.1"
 description = "Sudoku in your terminal: mouse, keyboard, notes, hints that explain, undo"
 requires-python = ">=3.9"
 dependencies = [
