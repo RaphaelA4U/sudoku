@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.2.1 (2026-11-10)
+- New defaults: difficulty hard, mistakes "show conflicts", mistake limit off. Settings you already chose stay as they are.
+
 ## v1.2.0 (2026-11-09)
 - Mistake limit (default 3): the third wrong digit is game over, like sudoku.com; r tries the same puzzle again. The count shows as "Mistakes 1/3". Switch it off in the menu.
 - Highlight (default on): the row, column and box of the selected cell light up.

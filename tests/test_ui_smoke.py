@@ -39,11 +39,11 @@ async def test_menu_boots_and_starts_a_game():
         await start(pilot, app, MenuScreen)
         menu = app.screen.query_one(AsciiMenu)
         assert menu.current_item().id == "new"  # no saved game yet
-        await pilot.press("down", "right")  # difficulty medium -> hard
-        assert config.load_settings()["difficulty"] == "hard"
+        await pilot.press("down", "right")  # difficulty hard -> expert
+        assert config.load_settings()["difficulty"] == "expert"
         await pilot.press("up", "enter")
         screen = await start(pilot, app)
-        assert screen.game.difficulty == "hard"
+        assert screen.game.difficulty == "expert"
 
 
 async def test_help_and_stats_pages():
@@ -279,9 +279,11 @@ async def test_battle_puzzle_is_shared_and_resumes():
         assert screen.game.battle == 12 and screen.game.values[cell]
 
 
-async def test_defaults_medium_and_mistakes_hidden():
-    assert config.DEFAULT_SETTINGS["difficulty"] == "medium"
-    assert config.DEFAULT_SETTINGS["mistakes"] == "off"
+async def test_defaults_hard_conflicts_no_limit():
+    assert config.DEFAULT_SETTINGS["difficulty"] == "hard"
+    assert config.DEFAULT_SETTINGS["mistakes"] == "conflicts"
+    assert config.DEFAULT_SETTINGS["mistake_limit"] == 0
+    config.save_settings(dict(config.load_settings(), mistakes="off"))
     app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 3})
     async with app.run_test(size=SIZE) as pilot:
         screen = await start(pilot, app)
@@ -313,6 +315,7 @@ async def test_filled_cell_is_not_overwritten():
 
 
 async def test_three_mistakes_is_game_over_and_r_tries_again():
+    config.save_settings(dict(config.load_settings(), mistake_limit=3))
     app = SudokuApp(no_update=True, initial={"difficulty": "easy", "seed": 4})
     async with app.run_test(size=SIZE) as pilot:
         screen = await start(pilot, app)

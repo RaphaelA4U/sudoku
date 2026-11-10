@@ -421,15 +421,15 @@ HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
   is done (all nine placed) fades in the row below the grid.
 
 [b u]Options[/b u] [dim](main menu)[/dim]
-  [b]Difficulty[/b]     easy, medium, hard or expert. Easy and medium only need
-                 looking around; hard needs pairs and pointing; expert
-                 needs X-wings, triples and XY-wings.
+  [b]Difficulty[/b]     easy, medium, hard (default) or expert. Easy and medium
+                 only need looking around; hard needs pairs and pointing;
+                 expert needs X-wings, triples and XY-wings.
   [b]Mistakes[/b]       "show wrong digits" turns a wrong digit red right away,
-                 "show conflicts" only when it clashes with its row, column
-                 or box, "hidden" never.
-  [b]Mistake limit[/b]  "3 mistakes" (default): the third wrong digit ends the game, as
-                 on sudoku.com; [b]r[/b] then tries the same puzzle again. The count
-                 shows top right. "off": no limit.
+                 "show conflicts" (default) only when it clashes with its row,
+                 column or box, "hidden" never.
+  [b]Mistake limit[/b]  "3 mistakes": the third wrong digit ends the game, as on
+                 sudoku.com; [b]r[/b] then tries the same puzzle again. The count
+                 shows top right. "off" (default): no limit.
   [b]Auto notes[/b]     on (default): placing a digit removes it from the notes in its
                  row, column and box. Clearing the digit puts them back.
   [b]Highlight[/b]      on (default): the row, column and box of the selected cell
@@ -528,7 +528,7 @@ class Board(Widget, can_focus=True):
         self.notes_mode = False
         self.hint: Optional[Step] = None
         self.hover: Optional[tuple[str, int]] = None  # ("cell"|"digit"|"notes", n)
-        self.mistake_mode = "off"
+        self.mistake_mode = "conflicts"
         self.highlight = True
         self.cw, self.ch = BIG_CELL
         self.thin = True  # thin lines between cells inside a box
@@ -880,10 +880,10 @@ class GameScreen(Screen):
 
     def _load_prefs(self) -> None:
         settings = load_settings()
-        self.board.mistake_mode = str(settings.get("mistakes", "off"))
+        self.board.mistake_mode = str(settings.get("mistakes", "conflicts"))
         self.board.highlight = bool(settings.get("highlight", True))
         self.auto_notes = bool(settings.get("auto_notes", True))
-        self.limit = int(settings.get("mistake_limit", 3) or 0)
+        self.limit = int(settings.get("mistake_limit", 0) or 0)
 
     def on_mount(self) -> None:
         board = self.board
@@ -1293,17 +1293,17 @@ class MenuScreen(Screen):
 
     def compose(self) -> ComposeResult:
         settings = load_settings()
-        diff = settings.get("difficulty", "medium")
-        mistakes = settings.get("mistakes", "off")
+        diff = settings.get("difficulty", "hard")
+        mistakes = settings.get("mistakes", "conflicts")
         items = [
             MenuItem("continue", "Continue game"),
             MenuItem("new", "New game"),
             MenuItem("difficulty", "Difficulty", "choice", [(d, d) for d in DIFFICULTIES],
-                     index=DIFFICULTIES.index(diff) if diff in DIFFICULTIES else 1),
+                     index=DIFFICULTIES.index(diff) if diff in DIFFICULTIES else 2),
             MenuItem("mistakes", "Mistakes", "choice", [(MISTAKE_LABELS[m], m) for m in MISTAKE_MODES],
-                     index=MISTAKE_MODES.index(mistakes) if mistakes in MISTAKE_MODES else 2),
+                     index=MISTAKE_MODES.index(mistakes) if mistakes in MISTAKE_MODES else 1),
             MenuItem("limit", "Mistake limit", "choice", [("3 mistakes", 3), ("off", 0)],
-                     index=0 if int(settings.get("mistake_limit", 3) or 0) else 1),
+                     index=0 if int(settings.get("mistake_limit", 0) or 0) else 1),
             MenuItem("autonotes", "Auto notes", "choice", [("on", True), ("off", False)],
                      index=0 if settings.get("auto_notes", True) else 1),
             MenuItem("highlight", "Highlight", "choice", [("on", True), ("off", False)],
@@ -1569,9 +1569,9 @@ class SudokuApp(App):
     def new_game(self, replace: bool = False, seed: Optional[int] = None,
                  difficulty: Optional[str] = None, battle: Optional[int] = None) -> None:
         settings = load_settings()
-        difficulty = difficulty or str(settings.get("difficulty", "medium"))
+        difficulty = difficulty or str(settings.get("difficulty", "hard"))
         if difficulty not in DIFFICULTIES:
-            difficulty = "medium"
+            difficulty = "hard"
         if seed is None:
             seed = random.SystemRandom().randint(1, 999_999)
         self._say(f"Making a {difficulty} puzzle...")
