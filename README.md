@@ -84,6 +84,8 @@ terminals get a roomy grid without them, and very small ones a compact grid.
   unique rectangle, quads, swordfish, jellyfish, finned fish and BUG+1.
   No level ever needs chains or guessing. A built-in logical solver rates
   every puzzle, so the label is honest, and hints explain every pattern.
+  The page **Levels** in the menu shows what each level needs and how a
+  puzzle gets its level (the hardest kind of step it needs, even once).
 - **Mistakes**: show conflicts (the default: red only on a clash in a row,
   column or box), show wrong digits (red right away), or hidden.
 - **Mistake limit**: off (the default), or 3 mistakes, which ends the game

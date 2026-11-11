@@ -35,6 +35,7 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 from .. import __version__
+from ..levels import levels_text
 from ..config import (
     MISTAKE_INFO,
     MISTAKE_LABELS,
@@ -43,6 +44,7 @@ from ..config import (
     load_game_logs,
     load_game_snapshot,
     load_settings,
+    load_stats,
     record_game,
     save_game_snapshot,
     save_settings,
@@ -427,6 +429,7 @@ HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
                  expert triples, X-wings and XY-wings; master skyscrapers,
                  kites, W-wings, XYZ-wings, unique rectangles and the like.
                  Never chains or guessing: every step is a fixed pattern.
+                 [b]Levels[/b] in the menu shows what each one needs.
   [b]Mistakes[/b]       "show wrong digits" turns a wrong digit red right away,
                  "show conflicts" (default) only when it clashes with its row,
                  column or box, "hidden" never.
@@ -1268,6 +1271,7 @@ MENU_INFO = {
     "timer": "Show the clock while you play.",
     "whatsnew": "What changed in recent updates.",
     "help": "Rules, keys and mouse, hints.",
+    "levels": "What each difficulty needs, how a puzzle gets its level, and why there is no guessing.",
     "stats": "Solved puzzles, streaks, best times per difficulty.",
     "review": "Every move of your last puzzle: what was sure, what was a guess, which note was missing.",
     "quit": "See you next time.",
@@ -1327,6 +1331,7 @@ class MenuScreen(Screen):
                      index=0 if settings.get("timer", True) else 1),
             MenuItem("whatsnew", "What's new"),
             MenuItem("help", "Help"),
+            MenuItem("levels", "Levels"),
             MenuItem("review", "Review last game"),
             MenuItem("stats", "Statistics"),
             MenuItem("quit", "Quit"),
@@ -1385,7 +1390,7 @@ class MenuScreen(Screen):
         if item is None:
             return
         if item.id == "difficulty":
-            info = DIFFICULTY_INFO[str(item.value)]
+            info = DIFFICULTY_INFO[str(item.value)] + " See Levels."
         elif item.id == "mistakes":
             info = MISTAKE_INFO[str(item.value)]
         elif item.id == "continue":
@@ -1427,6 +1432,8 @@ class MenuScreen(Screen):
             app.push_screen(TextPage("What's new", changelog_text()))
         elif event.item_id == "help":
             self.action_help()
+        elif event.item_id == "levels":
+            app.push_screen(TextPage("Levels", levels_text(load_stats()["games"])))
         elif event.item_id == "stats":
             app.push_screen(TextPage("Statistics", "\n".join(stats_summary())))
         elif event.item_id == "review":

@@ -56,6 +56,23 @@ async def test_menu_reaches_master_and_beginner():
         assert config.load_settings()["difficulty"] == "beginner"
 
 
+async def test_levels_page_from_the_menu():
+    from sudoku_app.levels import levels_text
+
+    app = SudokuApp(no_update=True)
+    async with app.run_test(size=SIZE) as pilot:
+        await start(pilot, app, MenuScreen)
+        menu = app.screen.query_one(AsciiMenu)
+        menu.post_message(AsciiMenu.Activated("levels"))
+        page = await start(pilot, app, TextPage)
+        body = str(page.query_one("#page-body").render())
+        assert "How a puzzle gets its level" in body and "MASTER" in body and "skyscraper" in body
+        assert "Never: guessing and chains" in body and "Solve a master puzzle without hints first" in body
+    # Only after a master puzzle without hints does the page say where to ask.
+    assert "issues" not in levels_text([{"won": True, "difficulty": "master", "hints": 2}])
+    assert "issues" in levels_text([{"won": True, "difficulty": "master", "hints": 0}])
+
+
 async def test_master_hint_explains_a_master_pattern():
     g = Sudoku(1, "master")
     hint = g.hint()

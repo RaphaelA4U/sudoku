@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from .levels import needed
 from .game import COL, PEERS, ROW, UNITS, Logic, Step, Sudoku, digits, parse_grid, unit_name
 
 HINT = "#ff9e3d"
@@ -248,6 +249,8 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
         f"  {status} in {_fmt_time(total)}. {placed} digits filled in, {wrong} wrong, "
         f"{hints} hint{'s' if hints != 1 else ''}, {undos} undo{'s' if undos != 1 else ''}, "
         f"{notes} note{'s' if notes != 1 else ''}.",
+        "",
+        "  The puzzle needed: " + ", ".join(needed(parse_grid(puzzle))) + ".",
         "",
         "[b u]How it went[/b u]",
         f"  {forced} of {placed - hints} digits were forced (you could be sure)"

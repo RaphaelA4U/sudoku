@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.0 (2026-11-11)
+- New page Levels in the menu: how a puzzle gets its level (the hardest kind of step it needs, even once; the number of digits only counts for beginner, easy and medium), every technique per level with one line on how it works, and how many of each level you solved.
+- The page says plainly that no level needs chains or guessing. Want them anyway? Solve a master puzzle without hints first, then the page tells you where to ask.
+- The review starts with what the puzzle needed, hardest first, for example "skyscraper (1), XY-wing (3), pointing (7), single (55)".
+
 ## v1.4.0 (2026-11-11)
 - Two new levels: beginner (45+ digits, only "where in this box can the 5 go") and master. There are now six: beginner, easy, medium, hard, expert, master.
 - Master needs fixed patterns beyond expert: skyscraper, kite, empty rectangle, W-wing, XYZ-wing, unique rectangle (types 1, 2 and 4), naked and hidden quads, swordfish, jellyfish, finned X-wing and swordfish, and BUG+1. No level needs chains (coloring and the like) or guessing.

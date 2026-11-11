@@ -273,6 +273,7 @@ def test_review_counts_a_short_chain_as_proof():
     g.set_value(73, 3)
     lines = "\n".join(review_lines(g.seed, "expert", grid_text(g.puzzle), grid_text(g.solution), g.log, True))
     assert "r9c2 = 3  (proven in 3 steps: XY-wing, then " in lines
+    assert "The puzzle needed: XY-wing (" in lines and "single (" in lines
 
 
 def test_short_chain_stays_short():
