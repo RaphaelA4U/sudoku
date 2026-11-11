@@ -32,7 +32,9 @@ def _rc(cell: int) -> str:
 
 # Techniques that only remove candidates (no digit placed), easiest first.
 ELIMINATORS = ("_pointing", "_claiming", "_naked_pair", "_hidden_pair", "_naked_triple",
-               "_hidden_triple", "_x_wing", "_xy_wing", "_swordfish")
+               "_hidden_triple", "_x_wing", "_xy_wing", "_skyscraper", "_kite", "_empty_rectangle",
+               "_xyz_wing", "_w_wing", "_unique_rectangle", "_naked_quad", "_hidden_quad", "_swordfish",
+               "_finned_x_wing", "_finned_swordfish", "_jellyfish", "_bug")
 
 
 def _single(logic: Logic, cell: int, d: int) -> str:
@@ -274,14 +276,14 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
         lines.append("  Longest thinking: " + ", ".join(f"{s} s before {what}" for s, _, what in top) + ".")
     lines += ["", "[b u]Tips for next time[/b u]"]
     tips = []
-    if choices and difficulty in ("easy", "medium"):
-        tips.append("Do not pick between two options. On easy and medium there is always a cell somewhere "
+    if choices and difficulty in ("beginner", "easy", "medium"):
+        tips.append(f"Do not pick between two options. On {difficulty} there is always a cell somewhere "
                     "where only one digit fits, or a digit with only one spot in a row, column or box. "
                     "Look for that one instead.")
     elif choices:
         tips.append("Do not pick between options. There is always a proof, but on hard it can take pointing "
-                    "or a pair (on expert also triples, X-wings and XY-wings). Look for those first; "
-                    "h shows the next step.")
+                    "or a pair, on expert also triples, X-wings and XY-wings, and on master skyscrapers, "
+                    "kites, W-wings and more. Look for those first; h shows the next step.")
     if note_lines:
         tips.append("A missing note looks exactly like proof. Before you leave a digit out of your notes, "
                     "be sure why: a digit in its row, column or box, or pointing where ALL spots of that "

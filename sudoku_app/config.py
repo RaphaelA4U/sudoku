@@ -30,7 +30,7 @@ MISTAKE_INFO = {
 }
 
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "difficulty": "hard",       # easy | medium | hard | expert
+    "difficulty": "hard",       # beginner | easy | medium | hard | expert | master
     "mistakes": "conflicts",    # wrong | conflicts | off
     "mistake_limit": 0,         # game over after this many mistakes; 0 = no limit
     "auto_notes": True,         # placing a digit removes it from notes in its row, column, box

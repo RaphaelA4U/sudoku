@@ -76,10 +76,14 @@ terminals get a roomy grid without them, and very small ones a compact grid.
 
 ## Options
 
-- **Difficulty**: easy and medium only need looking around (singles); hard
-  (the default) needs pairs and pointing; expert needs X-wings, triples
-  and XY-wings. A built-in logical solver rates every puzzle, so the label
-  is honest.
+- **Difficulty**: six levels. Beginner only asks where a digit goes in its
+  box (lots of digits to start with); easy and medium need looking around
+  (singles, medium sometimes pointing); hard (the default) needs pairs and
+  pointing; expert needs triples, X-wings and XY-wings; master needs fixed
+  patterns such as the skyscraper, kite, empty rectangle, W-wing, XYZ-wing,
+  unique rectangle, quads, swordfish, jellyfish, finned fish and BUG+1.
+  No level ever needs chains or guessing. A built-in logical solver rates
+  every puzzle, so the label is honest, and hints explain every pattern.
 - **Mistakes**: show conflicts (the default: red only on a clash in a row,
   column or box), show wrong digits (red right away), or hidden.
 - **Mistake limit**: off (the default), or 3 mistakes, which ends the game
@@ -97,7 +101,7 @@ exactly that puzzle again.
 
 ```
 sudoku --new                      a new puzzle right away
-sudoku --difficulty expert        easy | medium | hard | expert
+sudoku --difficulty master        beginner | easy | medium | hard | expert | master
 sudoku --puzzle 42                a specific puzzle
 sudoku --resume                   reopen the saved puzzle
 sudoku --battle ID                a beheer chat battle: the same puzzle for everyone

@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument("--resume", action="store_true", help="reopen the saved puzzle right away")
     parser.add_argument("--no-update", action="store_true", help="skip the update check")
     parser.add_argument(
-        "--difficulty", metavar="D", help="easy | medium | hard | expert",
+        "--difficulty", metavar="D", help="beginner | easy | medium | hard | expert | master",
     )
     parser.add_argument(
         "--puzzle", type=int, metavar="N",

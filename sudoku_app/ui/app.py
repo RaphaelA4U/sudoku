@@ -421,9 +421,12 @@ HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
   is done (all nine placed) fades in the row below the grid.
 
 [b u]Options[/b u] [dim](main menu)[/dim]
-  [b]Difficulty[/b]     easy, medium, hard (default) or expert. Easy and medium
-                 only need looking around; hard needs pairs and pointing;
-                 expert needs X-wings, triples and XY-wings.
+  [b]Difficulty[/b]     beginner, easy, medium, hard (default), expert or master.
+                 Beginner only asks where a digit goes in its box; easy and
+                 medium need looking around; hard needs pairs and pointing;
+                 expert triples, X-wings and XY-wings; master skyscrapers,
+                 kites, W-wings, XYZ-wings, unique rectangles and the like.
+                 Never chains or guessing: every step is a fixed pattern.
   [b]Mistakes[/b]       "show wrong digits" turns a wrong digit red right away,
                  "show conflicts" (default) only when it clashes with its row,
                  column or box, "hidden" never.
@@ -545,17 +548,27 @@ class Board(Widget, can_focus=True):
             return 9 * cw + 10, 9 * ch + 10
         return 9 * cw + 4, 9 * ch + 4
 
+    def _tall(self) -> int:
+        """The board's height as if the note line had its usual single row. A long
+        hint lends the note a few rows from the bottom of the board (the digit row is
+        hidden for a moment) instead of switching to a smaller grid."""
+        try:
+            lent = max(0, self.screen.query_one("#note").size.height - 1)
+        except Exception:  # noqa: BLE001
+            lent = 0
+        return self.size.height + lent
+
     def pick_size(self) -> None:
         for _, (cw, ch), thin in LAYOUTS:
             w, h = self.grid_size(cw, ch, thin)
-            if self.size.width >= w and self.size.height >= h + 2:
+            if self.size.width >= w and self._tall() >= h + 2:
                 break
         self.cw, self.ch, self.thin = cw, ch, thin
 
     def origin(self) -> tuple[int, int]:
         w, h = self.grid_size(self.cw, self.ch, self.thin)
         x0 = max(0, (self.size.width - w) // 2)
-        y0 = max(0, (self.size.height - h - 2) // 2)
+        y0 = max(0, (self._tall() - h - 2) // 2)
         return x0, y0
 
     def _line_offset(self, k: int, size: int) -> int:
@@ -912,7 +925,7 @@ class GameScreen(Screen):
     def note(self, text: str) -> None:
         self._note_text = text
         try:
-            self.query_one("#note", Static).update(f" {text}")
+            self.query_one("#note", Static).update(text)
         except Exception:  # noqa: BLE001 - screen tearing down
             pass
 
@@ -1299,7 +1312,7 @@ class MenuScreen(Screen):
             MenuItem("continue", "Continue game"),
             MenuItem("new", "New game"),
             MenuItem("difficulty", "Difficulty", "choice", [(d, d) for d in DIFFICULTIES],
-                     index=DIFFICULTIES.index(diff) if diff in DIFFICULTIES else 2),
+                     index=DIFFICULTIES.index(diff if diff in DIFFICULTIES else "hard")),
             MenuItem("mistakes", "Mistakes", "choice", [(MISTAKE_LABELS[m], m) for m in MISTAKE_MODES],
                      index=MISTAKE_MODES.index(mistakes) if mistakes in MISTAKE_MODES else 1),
             MenuItem("limit", "Mistake limit", "choice", [("3 mistakes", 3), ("off", 0)],
@@ -1465,7 +1478,7 @@ class SudokuApp(App):
     /* Game */
     #statusbar { height: 1; }
     Board { height: 1fr; width: 1fr; margin-top: 1; }
-    #note { height: 1; }
+    #note { height: auto; max-height: 3; padding: 0 1; }
     #footer-keys { height: 1; color: ansi_bright_black; }
 
     /* Text pages */
@@ -1579,7 +1592,7 @@ class SudokuApp(App):
 
     @work(thread=True, exclusive=True, group="puzzle")
     def _make_puzzle(self, seed: int, difficulty: str, replace: bool, battle: Optional[int] = None) -> None:
-        game = Sudoku(seed, difficulty)  # a fraction of a second, even for expert
+        game = Sudoku(seed, difficulty)  # a fraction of a second, even for master
         game.battle = battle
         self.call_from_thread(self._start_game, game, replace)
 

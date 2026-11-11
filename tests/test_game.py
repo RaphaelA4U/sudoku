@@ -34,8 +34,74 @@ def test_generated_puzzles_are_unique_and_rated(difficulty):
 
 def test_difficulties_get_harder():
     clues = {d: sum(1 for v in generate(9, d)[0] if v) for d in DIFFICULTIES}
-    assert clues["easy"] >= 36 and clues["medium"] >= 30
-    assert clues["easy"] > clues["hard"]
+    assert clues["beginner"] >= 45 and clues["easy"] >= 36 and clues["medium"] >= 30
+    assert clues["beginner"] > clues["easy"] > clues["hard"]
+
+
+def test_old_levels_keep_their_puzzles():
+    # v1.4.0 added beginner and master; puzzle numbers (and chat battles, which play
+    # easy) must give the same puzzles as before.
+    assert grid_text(generate(1, "easy")[0]) == (
+        "600098000014070809500000010025360108300804002809017450080000005102080940000920001")
+    assert grid_text(generate(1, "medium")[0]) == (
+        "309000510005090040200300006608000000502106407000000109100009003080020700027000604")
+    assert grid_text(generate(1, "hard")[0]) == (
+        "000010000905400060041000908400001620500000009026900005304000710060004302000050000")
+
+
+MASTER = ("_skyscraper", "_kite", "_empty_rectangle", "_xyz_wing", "_w_wing", "_unique_rectangle",
+          "_naked_quad", "_hidden_quad", "_swordfish", "_finned_x_wing", "_finned_swordfish",
+          "_jellyfish", "_bug")
+
+
+def test_master_patterns_never_remove_the_answer():
+    # Strip puzzles down to a minimum and, at every state on the way to the answer,
+    # try every master pattern: none may ever remove the digit that belongs there.
+    seen = set()
+    for seed in range(1, 13):
+        puzzle, solution = generate(seed, "hard")
+        rng = random.Random(seed)
+        cells = [i for i in range(81) if puzzle[i]]
+        rng.shuffle(cells)
+        for c in cells:
+            keep, puzzle[c] = puzzle[c], 0
+            if count_solutions(puzzle) != 1:
+                puzzle[c] = keep
+        logic = Logic(puzzle)
+        while not logic.solved():
+            for name in MASTER:
+                step = getattr(logic, name)()
+                if step is not None:
+                    seen.add(step.technique)
+                    assert step.level == 5 and step.why and step.cells
+                    assert all(solution[c] != d for c, d in step.eliminate), (name, seed, step.why)
+            step = logic.step()
+            if step is None:
+                break
+            logic.apply(step)
+    assert {"skyscraper", "kite", "empty rectangle", "XYZ-wing", "W-wing", "unique rectangle",
+            "naked quad", "hidden quad", "swordfish", "finned X-wing", "finned swordfish",
+            "jellyfish"} <= seen
+
+
+def test_bug_plus_one():
+    # A real state from a stripped puzzle: every open cell has two options except
+    # row 2, column 7 (4, 7 or 9); the 7 fits three times around it, so it is the 7.
+    logic = Logic(parse_grid("830750062102368050560290083285619300943872615716543829428137596350086201601025038"))
+    logic.cand = [0, 0, 528, 0, 0, 18, 514, 0, 0, 0, 640, 0, 0, 0, 0, 656, 0, 144, 0, 0, 144, 0, 0, 18, 130,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 144, 144] + [0] * 29 + [640, 528, 0, 0, 0, 144, 0, 0, 640, 0,
+                  528, 0, 0, 144, 0, 0]
+    step = logic._bug()
+    assert step is not None and step.technique == "BUG+1"
+    assert sorted(step.eliminate) == [(15, 4), (15, 9)] and "it is the 7" in step.why
+    logic.cand[2] = 1 << 4 | 1 << 9 | 1 << 1  # a second cell with three options: no BUG
+    assert logic._bug() is None
+
+
+def test_master_needs_a_master_pattern_and_expert_does_not():
+    for seed in (1, 2):
+        assert rate(generate(seed, "master")[0]) == 5
+        assert rate(generate(seed, "expert")[0]) == 4
 
 
 def test_solution_is_a_valid_sudoku():
@@ -51,7 +117,7 @@ def test_logic_never_places_a_wrong_digit():
         puzzle, solution = generate(rng.randint(1, 999_999), diff)
         logic = Logic(puzzle)
         while not logic.solved():
-            step = logic.step(3)
+            step = logic.step()
             assert step is not None, "rated puzzles are solvable by the logic"
             if step.place:
                 cell, d = step.place

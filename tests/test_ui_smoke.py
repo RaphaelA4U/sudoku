@@ -46,6 +46,25 @@ async def test_menu_boots_and_starts_a_game():
         assert screen.game.difficulty == "expert"
 
 
+async def test_menu_reaches_master_and_beginner():
+    app = SudokuApp(no_update=True)
+    async with app.run_test(size=SIZE) as pilot:
+        await start(pilot, app, MenuScreen)
+        await pilot.press("down", "right", "right")  # hard -> expert -> master (last)
+        assert config.load_settings()["difficulty"] == "master"
+        await pilot.press(*["left"] * 5)  # back down to beginner (first)
+        assert config.load_settings()["difficulty"] == "beginner"
+
+
+async def test_master_hint_explains_a_master_pattern():
+    g = Sudoku(1, "master")
+    hint = g.hint()
+    while hint is not None and hint.level < 5:
+        g.set_value(*hint.place)
+        hint = g.hint()
+    assert hint is not None and hint.level == 5 and hint.why
+
+
 async def test_help_and_stats_pages():
     app = SudokuApp(no_update=True)
     async with app.run_test(size=SIZE) as pilot:

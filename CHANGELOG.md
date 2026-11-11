@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.0 (2026-11-11)
+- Two new levels: beginner (45+ digits, only "where in this box can the 5 go") and master. There are now six: beginner, easy, medium, hard, expert, master.
+- Master needs fixed patterns beyond expert: skyscraper, kite, empty rectangle, W-wing, XYZ-wing, unique rectangle (types 1, 2 and 4), naked and hidden quads, swordfish, jellyfish, finned X-wing and swordfish, and BUG+1. No level needs chains (coloring and the like) or guessing.
+- Expert now means triples, X-wings and XY-wings; the swordfish moved to master. Easy, medium and hard give exactly the same puzzles as before, so puzzle numbers and chat battles stay the same.
+- Hints and the review know every new pattern. A hint after several eliminations now explains the hardest one, and a long hint gets up to three lines without the grid changing size.
+
 ## v1.3.1 (2026-11-11)
 - The review recognises a short chain as proof: when a digit follows from at most three steps (for example an XY-wing, then a single elsewhere, then this digit), it counts as proven and shows the steps, instead of being called a choice. Longer chains still count as a choice, so a lucky guess does not look like proof.
 
