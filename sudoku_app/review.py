@@ -3,13 +3,18 @@
 For every digit you filled in it checks, against the board at that moment
 (counting only the digits that were right), whether the digit was forced
 (a single: the only digit for that cell, or the only cell for that digit
-in a row, column or box) or a choice between several options, and whether
-it clashed with a digit that was already visible.
+in a row, column or box), proven by a technique such as pointing or a pair,
+or a choice between several options, and whether it clashed with a digit
+that was already visible. For a choice it also checks your notes: when they
+showed one option while more were still possible, it says which note was
+missing, because a missing note looks exactly like proof.
 """
 
 from __future__ import annotations
 
-from .game import COL, PEERS, ROW, UNITS, Logic, Sudoku, parse_grid
+from typing import Optional
+
+from .game import COL, PEERS, ROW, UNITS, Logic, Step, Sudoku, digits, parse_grid, unit_name
 
 HINT = "#ff9e3d"
 WINC = "#4dd0e1"
@@ -24,20 +29,80 @@ def _rc(cell: int) -> str:
     return f"r{ROW[cell] + 1}c{COL[cell] + 1}"
 
 
-def _forced(values: list[int], solution: list[int], cell: int, d: int) -> tuple[str, list[int]]:
-    """(kind, options): kind is 'naked', 'hidden <unit>', 'choice' or 'impossible'."""
+# Techniques that only remove candidates (no digit placed), easiest first.
+ELIMINATORS = ("_pointing", "_claiming", "_naked_pair", "_hidden_pair", "_naked_triple",
+               "_hidden_triple", "_x_wing", "_xy_wing", "_swordfish")
+
+
+def _single(logic: Logic, cell: int, d: int) -> str:
+    """'naked', 'hidden <unit>' or '' when d is not (yet) a single in this cell."""
+    if logic.cand[cell] == 1 << d:
+        return "naked"
+    for kind, idx, unit in UNITS:
+        if cell in unit and [i for i in unit if logic.cand[i] >> d & 1] == [cell]:
+            return f"hidden {kind} {idx + 1}"
+    return ""
+
+
+def _forced(values: list[int], solution: list[int], cell: int,
+            d: int) -> tuple[str, list[int], Optional[Step], Logic]:
+    """(kind, options, step, logic). kind is 'naked', 'hidden <unit>', 'logic'
+    (a single once pointing, pairs or another technique has removed candidates;
+    step is the one that made it a single), 'choice' or 'impossible'. For a
+    choice, options and logic are what is still possible after every technique."""
     clean = [v if v == solution[i] else 0 for i, v in enumerate(values)]
     clean[cell] = 0
     logic = Logic(clean)
-    options = [x for x in range(1, 10) if logic.cand[cell] >> x & 1]
+    options = digits(logic.cand[cell])
     if d not in options:
-        return "impossible", options
-    if len(options) == 1:
-        return "naked", options
-    for kind, idx, unit in UNITS:
-        if cell in unit and [i for i in unit if logic.cand[i] >> d & 1] == [cell]:
-            return f"hidden {kind} {idx + 1}", options
-    return "choice", options
+        return "impossible", options, None, logic
+    single = _single(logic, cell, d)
+    if single:
+        return single, options, None, logic
+    for _ in range(60):
+        step = None
+        for name in ELIMINATORS:
+            step = getattr(logic, name)()
+            if step is not None:
+                break
+        if step is None:
+            break
+        logic.apply(step)
+        if not logic.cand[cell] >> d & 1:
+            break
+        if _single(logic, cell, d):
+            return "logic", options, step, logic
+    return "choice", digits(logic.cand[cell]) or options, None, logic
+
+
+def _note_gaps(game: Sudoku, solution: list[int], logic: Logic, cell: int, d: int) -> list[str]:
+    """Where your notes said this digit was the only option while it was not."""
+    gaps = []
+    for kind, idx, unit in sorted(UNITS, key=lambda u: u[0] != "box"):
+        if cell not in unit:
+            continue
+        noted = [i for i in unit if not game.values[i] and game.notes[i] >> d & 1]
+        missing = [i for i in unit if i != cell and not game.values[i] and game.notes[i]
+                   and not game.notes[i] >> d & 1 and logic.cand[i] >> d & 1]
+        if noted == [cell] and missing:
+            gaps.append(f"your notes had the {d} only here in {unit_name(kind, idx)}, but "
+                        f"{_join([_rc(i) for i in missing])} could also hold a {d}")
+            break
+    own = digits(game.notes[cell])
+    others = [x for x in digits(logic.cand[cell]) if x != d]
+    if not gaps and own == [d] and others:
+        gap = f"your notes here said only {d}, but {_join(others)} could also go here"
+        blockers = [p for x in others for p in PEERS[cell] if game.values[p] == x and solution[p] != x]
+        if blockers:
+            gap += (" (ruled out only by your wrong " +
+                    _join([f"{_rc(p)} = {game.values[p]}" for p in blockers]) + ")")
+        gaps.append(gap)
+    return gaps
+
+
+def _join(items: list) -> str:
+    items = [str(x) for x in items]
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
 def _clashes(values: list[int], solution: list[int], cell: int, d: int) -> list[int]:
@@ -53,6 +118,8 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
     rows: list[str] = []
     placed = forced = choices = choices_wrong = wrong = hints = undos = notes = 0
     clash_lines: list[str] = []
+    proven: list[str] = []
+    note_lines: list[str] = []
     pauses: list[tuple[int, int, str]] = []
     prev_clock = 0
     for n, entry in enumerate(log):
@@ -64,7 +131,7 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
         text, style = action, ""
         if kind in "vh":
             cell, d = (int(x) for x in rest.rstrip("!").split("="))
-            how, options = _forced(game.values, sol, cell, d)
+            how, options, proof, logic = _forced(game.values, sol, cell, d)
             clash = _clashes(game.values, sol, cell, d)
             ok = d == sol[cell]
             placed += 1
@@ -76,10 +143,19 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
                 if how.startswith(("naked", "hidden")):
                     forced += 1
                     why = "only digit that fits" if how == "naked" else f"only spot in {how[7:]}"
+                elif how == "logic" and proof is not None:
+                    forced += 1
+                    why = f"proven with {proof.technique}"
+                    proven.append(f"{_rc(cell)} = {d} at {_fmt_time(clock)}, {proof.technique}: {proof.why}")
                 elif how == "choice":
                     choices += 1
                     choices_wrong += 0 if ok else 1
                     why = "a choice between " + " and ".join(str(o) for o in options)
+                    gaps = _note_gaps(game, sol, logic, cell, d)
+                    if gaps:
+                        why += "; " + "; ".join(gaps)
+                        note_lines.append(f"{_rc(cell)} = {d} at {_fmt_time(clock)} "
+                                          f"({'right' if ok else 'wrong'}): " + "; ".join(gaps))
                 else:
                     why = "cannot go there"
                 if clash:
@@ -123,11 +199,20 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
         f"{notes} note{'s' if notes != 1 else ''}.",
         "",
         "[b u]How it went[/b u]",
-        f"  {forced} of {placed - hints} digits were forced (a single: you could be sure).",
+        f"  {forced} of {placed - hints} digits were forced (you could be sure)"
+        + (f": {forced - len(proven)} singles and {len(proven)} proven with pointing, pairs or another "
+           "technique." if proven else ", all of them singles."),
     ]
+    if proven:
+        lines.append("  Found with more than a single:")
+        lines += [f"    {p}" for p in proven]
     if choices:
         lines.append(f"  {choices} time{'s' if choices != 1 else ''} you picked between options without proof; "
                      f"{choices_wrong} of those were wrong.")
+    if note_lines:
+        lines.append(f"  {len(note_lines)} time{'s' if len(note_lines) != 1 else ''} your notes showed one "
+                     "option while more were still possible:")
+        lines += [f"    {c}" for c in note_lines]
     if clash_lines:
         lines.append(f"  {len(clash_lines)} digit{'s' if len(clash_lines) != 1 else ''} clashed with a digit "
                      "that was already on the board:")
@@ -140,10 +225,18 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
         lines.append("  Longest thinking: " + ", ".join(f"{s} s before {what}" for s, _, what in top) + ".")
     lines += ["", "[b u]Tips for next time[/b u]"]
     tips = []
-    if choices:
+    if choices and difficulty in ("easy", "medium"):
         tips.append("Do not pick between two options. On easy and medium there is always a cell somewhere "
                     "where only one digit fits, or a digit with only one spot in a row, column or box. "
                     "Look for that one instead.")
+    elif choices:
+        tips.append("Do not pick between options. There is always a proof, but on hard it can take pointing "
+                    "or a pair (on expert also triples, X-wings and XY-wings). Look for those first; "
+                    "h shows the next step.")
+    if note_lines:
+        tips.append("A missing note looks exactly like proof. Before you leave a digit out of your notes, "
+                    "be sure why: a digit in its row, column or box, or pointing where ALL spots of that "
+                    "digit in a box lie on one line.")
     if clash_lines:
         tips.append("Before you fill in a digit, check its row, its column and its box for that digit.")
     if notes and choices:

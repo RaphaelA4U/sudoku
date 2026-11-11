@@ -405,7 +405,7 @@ HELP_TEXT = f"""[b]SUDOKU v{__version__}[/b]
   [b]h[/b]              hint: shows the next step and why; [b]h[/b] again fills it in
   [b]u ctrl+z[/b]       undo (as often as you like)
   [b]r[/b]              start this puzzle over (undo brings it back)
-  [b]v[/b]              review: every move so far, what was forced and what was a guess
+  [b]v[/b]              review: every move so far, what was sure and what was a guess
   [b]esc[/b]            back to the menu (the game is saved)
   [b]?[/b]              this help
   [b]ctrl+q[/b]         quit (the game is saved)
@@ -1256,7 +1256,7 @@ MENU_INFO = {
     "whatsnew": "What changed in recent updates.",
     "help": "Rules, keys and mouse, hints.",
     "stats": "Solved puzzles, streaks, best times per difficulty.",
-    "review": "Every move of your last puzzle: what was forced, what was a guess.",
+    "review": "Every move of your last puzzle: what was sure, what was a guess, which note was missing.",
     "quit": "See you next time.",
 }
 

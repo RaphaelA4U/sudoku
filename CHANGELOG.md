@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.0 (2026-11-11)
+- The review now counts a digit found with pointing, a pair or another technique as proven, not as a guess, and shows the step that proves it.
+- When your notes showed only one option while more were still possible, the review says which note was missing (and when a wrong digit of yours ruled it out).
+
 ## v1.2.1 (2026-11-10)
 - New defaults: difficulty hard, mistakes "show conflicts", mistake limit off. Settings you already chose stay as they are.
 

@@ -164,6 +164,33 @@ def test_review_spots_guesses_clashes_and_wrong_digits():
     assert "Every action" in lines
 
 
+def test_review_counts_pointing_and_pairs_as_proof():
+    from sudoku_app.review import _forced, review_lines
+
+    g = Sudoku(1, "hard")
+    cell = next(c for c in range(81) if not g.values[c]
+                and _forced(g.values, g.solution, c, g.solution[c])[0] == "logic")
+    g.set_value(cell, g.solution[cell])
+    lines = "\n".join(review_lines(g.seed, "hard", grid_text(g.puzzle), grid_text(g.solution), g.log, False))
+    assert "1 proven with pointing, pairs or another technique" in lines
+    assert "Found with more than a single" in lines and "without proof" not in lines
+
+
+def test_review_names_the_missing_note():
+    from sudoku_app.review import _forced, review_lines
+
+    g = Sudoku(5, "easy")
+    cell = next(c for c in range(81) if not g.values[c]
+                and _forced(g.values, g.solution, c, g.solution[c])[0] == "choice")
+    right = g.solution[cell]
+    g.toggle_note(cell, right)  # the note leaves out the other options
+    g.set_value(cell, right)
+    lines = "\n".join(review_lines(g.seed, "easy", grid_text(g.puzzle), grid_text(g.solution), g.log, False))
+    assert "your notes showed one option while more were still possible" in lines
+    assert f"your notes here said only {right}, but" in lines
+    assert "A missing note looks exactly like proof" in lines
+
+
 def test_save_carries_race_progress():
     g = Sudoku(42, "easy")
     assert g.to_dict()["progress"] == sum(1 for v in g.puzzle if v)
