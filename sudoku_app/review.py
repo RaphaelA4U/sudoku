@@ -4,7 +4,8 @@ For every digit you filled in it checks, against the board at that moment
 (counting only the digits that were right), whether the digit was forced
 (a single: the only digit for that cell, or the only cell for that digit
 in a row, column or box), proven by a technique such as pointing or a pair,
-or a choice between several options, and whether it clashed with a digit
+proven by a short chain (at most three steps, for example an XY-wing, then a
+single elsewhere, then this digit), or a choice between several options, and whether it clashed with a digit
 that was already visible. For a choice it also checks your notes: when they
 showed one option while more were still possible, it says which note was
 missing, because a missing note looks exactly like proof.
@@ -48,7 +49,8 @@ def _forced(values: list[int], solution: list[int], cell: int,
             d: int) -> tuple[str, list[int], Optional[Step], Logic]:
     """(kind, options, step, logic). kind is 'naked', 'hidden <unit>', 'logic'
     (a single once pointing, pairs or another technique has removed candidates;
-    step is the one that made it a single), 'choice' or 'impossible'. For a
+    step is the one that made it a single), 'chain' (a single after at most two
+    other steps, see _short_chain; step.why says them), 'choice' or 'impossible'. For a
     choice, options and logic are what is still possible after every technique."""
     clean = [v if v == solution[i] else 0 for i, v in enumerate(values)]
     clean[cell] = 0
@@ -72,7 +74,50 @@ def _forced(values: list[int], solution: list[int], cell: int,
             break
         if _single(logic, cell, d):
             return "logic", options, step, logic
+    chain = _short_chain(clean, cell, d)
+    if chain:
+        return "chain", options, Step(3, f"{chain.count(', then ') + 1} steps", place=(cell, d), why=chain), logic
     return "choice", digits(logic.cand[cell]) or options, None, logic
+
+
+def _copy(logic: Logic) -> Logic:
+    twin = Logic.__new__(Logic)
+    twin.grid, twin.cand = list(logic.grid), list(logic.cand)
+    return twin
+
+
+def _moves(logic: Logic, cell: int) -> list[tuple[Step, str]]:
+    """Every single on the board (except in this cell) plus the first step of each
+    elimination technique, with how to say it."""
+    moves = []
+    for c in range(81):
+        if c != cell and not logic.grid[c]:
+            for x in digits(logic.cand[c]):
+                if _single(logic, c, x):
+                    moves.append((Step(1, "single", place=(c, x)), f"{_rc(c)} = {x}"))
+    for name in ELIMINATORS:
+        step = getattr(logic, name)()
+        if step is not None:
+            moves.append((step, step.technique))
+    return moves
+
+
+def _short_chain(clean: list[int], cell: int, d: int, max_before: int = 2) -> str:
+    """A proof of at most three steps, every step counted (a single elsewhere or one
+    pointing, pair, wing...), after which d is a single in this cell. Longer chains do
+    not count: with enough steps every lucky guess would look like proof."""
+    frontier: list[tuple[Logic, list[str]]] = [(Logic(clean), [])]
+    for _ in range(max_before):
+        nxt = []
+        for logic, said in frontier:
+            for step, text in _moves(logic, cell):
+                twin = _copy(logic)
+                twin.apply(step)
+                if twin.cand[cell] >> d & 1 and _single(twin, cell, d):
+                    return ", then ".join(said + [text, "this one"])
+                nxt.append((twin, said + [text]))
+        frontier = nxt
+    return ""
 
 
 def _note_gaps(game: Sudoku, solution: list[int], logic: Logic, cell: int, d: int) -> list[str]:
@@ -147,6 +192,10 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
                     forced += 1
                     why = f"proven with {proof.technique}"
                     proven.append(f"{_rc(cell)} = {d} at {_fmt_time(clock)}, {proof.technique}: {proof.why}")
+                elif how == "chain" and proof is not None:
+                    forced += 1
+                    why = f"proven in {proof.technique}: {proof.why}"
+                    proven.append(f"{_rc(cell)} = {d} at {_fmt_time(clock)}, in {proof.technique}: {proof.why}")
                 elif how == "choice":
                     choices += 1
                     choices_wrong += 0 if ok else 1
@@ -200,8 +249,8 @@ def review_lines(seed: int, difficulty: str, puzzle: str, solution: str, log: li
         "",
         "[b u]How it went[/b u]",
         f"  {forced} of {placed - hints} digits were forced (you could be sure)"
-        + (f": {forced - len(proven)} singles and {len(proven)} proven with pointing, pairs or another "
-           "technique." if proven else ", all of them singles."),
+        + (f": {forced - len(proven)} singles and {len(proven)} proven with pointing, pairs, wings or a "
+           "short chain." if proven else ", all of them singles."),
     ]
     if proven:
         lines.append("  Found with more than a single:")

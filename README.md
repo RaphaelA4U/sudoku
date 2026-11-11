@@ -59,7 +59,7 @@ exactly once. Every puzzle has exactly one solution.
 | h | hint: the next step and why; h again fills it in |
 | u / ctrl+z | undo |
 | r | start the puzzle over (undo brings it back) |
-| v | review: every move, what was forced, proven or a guess, and which note was missing |
+| v | review: every move, what was forced, proven (also by a short chain of up to 3 steps) or a guess, and which note was missing |
 | esc | back to the menu (auto-saved) |
 | ? | help, F2 screenshot (SVG into Downloads) |
 

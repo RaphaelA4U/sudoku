@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.3.1 (2026-11-11)
+- The review recognises a short chain as proof: when a digit follows from at most three steps (for example an XY-wing, then a single elsewhere, then this digit), it counts as proven and shows the steps, instead of being called a choice. Longer chains still count as a choice, so a lucky guess does not look like proof.
+
 ## v1.3.0 (2026-11-11)
 - The review now counts a digit found with pointing, a pair or another technique as proven, not as a guess, and shows the step that proves it.
 - When your notes showed only one option while more were still possible, the review says which note was missing (and when a wrong digit of yours ruled it out).

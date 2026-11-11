@@ -13,6 +13,7 @@ from sudoku_app.game import (
     count_solutions,
     generate,
     grid_text,
+    parse_grid,
     rate,
     solve,
 )
@@ -172,7 +173,7 @@ def test_review_counts_pointing_and_pairs_as_proof():
                 and _forced(g.values, g.solution, c, g.solution[c])[0] == "logic")
     g.set_value(cell, g.solution[cell])
     lines = "\n".join(review_lines(g.seed, "hard", grid_text(g.puzzle), grid_text(g.solution), g.log, False))
-    assert "1 proven with pointing, pairs or another technique" in lines
+    assert "1 proven with pointing, pairs, wings or a short chain" in lines
     assert "Found with more than a single" in lines and "without proof" not in lines
 
 
@@ -189,6 +190,33 @@ def test_review_names_the_missing_note():
     assert "your notes showed one option while more were still possible" in lines
     assert f"your notes here said only {right}, but" in lines
     assert "A missing note looks exactly like proof" in lines
+
+
+def test_review_counts_a_short_chain_as_proof():
+    from sudoku_app.review import _forced, review_lines
+
+    # Expert #651828 at 41:30: the 3 at r9c2 needs an XY-wing, then a single
+    # elsewhere, then it is the only spot. Before v1.3.1 the review called it a choice.
+    g = Sudoku(651828, "expert")
+    done = parse_grid("815630200000805306600920508561298437040060850708453601287549163100386700006002980")
+    for c in range(81):
+        if done[c] and not g.values[c]:
+            g.set_value(c, done[c])
+    how, _, proof, _ = _forced(g.values, g.solution, 73, 3)
+    assert how == "chain" and proof.technique == "3 steps" and proof.why.startswith("XY-wing, then ")
+    g.set_value(73, 3)
+    lines = "\n".join(review_lines(g.seed, "expert", grid_text(g.puzzle), grid_text(g.solution), g.log, True))
+    assert "r9c2 = 3  (proven in 3 steps: XY-wing, then " in lines
+
+
+def test_short_chain_stays_short():
+    from sudoku_app.review import _forced
+
+    # A digit that only follows after many steps is still a choice.
+    g = Sudoku(651828, "expert")
+    far = [c for c in range(81) if not g.values[c]
+           and _forced(g.values, g.solution, c, g.solution[c])[0] == "choice"]
+    assert far
 
 
 def test_save_carries_race_progress():
