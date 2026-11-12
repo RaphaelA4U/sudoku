@@ -26,7 +26,7 @@ def main() -> None:
         "--difficulty", metavar="D", help="beginner | easy | medium | hard | expert | master",
     )
     parser.add_argument(
-        "--puzzle", type=int, metavar="N",
+        "--puzzle", "--seed", type=int, metavar="N", dest="puzzle",
         help="play puzzle number N (1-999999); the same number and difficulty is the same puzzle",
     )
     parser.add_argument(

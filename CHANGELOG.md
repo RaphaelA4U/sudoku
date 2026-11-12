@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.6.0 (2026-11-12)
+- `--seed N` works like `--puzzle N` (the same flag in every game), and the game log records the version.
+
 ## v1.5.0 (2026-11-11)
 - New page Levels in the menu: how a puzzle gets its level (the hardest kind of step it needs, even once; the number of digits only counts for beginner, easy and medium), every technique per level with one line on how it works, and how many of each level you solved.
 - The page says plainly that no level needs chains or guessing. Want them anyway? Solve a master puzzle without hints first, then the page tells you where to ask.

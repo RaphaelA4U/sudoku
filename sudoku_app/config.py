@@ -105,8 +105,10 @@ def record_game(entry: dict[str, Any], game: dict[str, Any] | None = None) -> No
     stats["games"].append(dict(entry, date=date))
     _write_json(STATS_FILE, stats)
     if game is not None:
-        line = dict(entry, date=date, puzzle=game.get("puzzle"), solution=game.get("solution"),
-                    log=list(game.get("log", [])))
+        from . import __version__
+
+        line = dict(entry, date=date, version=__version__, puzzle=game.get("puzzle"),
+                    solution=game.get("solution"), log=list(game.get("log", [])))
         try:
             GAMES_FILE.parent.mkdir(parents=True, exist_ok=True)
             with GAMES_FILE.open("a", encoding="utf-8") as fh:
