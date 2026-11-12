@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.7.0 (2026-11-12)
+- `sudoku --verify` reads one recorded game (a line of games.jsonl) on stdin, replays it from its puzzle number and difficulty with the game's own rules, and prints one JSON line with the verdict (exit 0 when it holds up, 1 when not). It never writes a file, never starts the game and never goes online.
+
 ## v1.6.0 (2026-11-12)
 - `--seed N` works like `--puzzle N` (the same flag in every game), and the game log records the version.
 

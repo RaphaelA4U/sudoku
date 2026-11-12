@@ -108,6 +108,7 @@ sudoku --puzzle 42                a specific puzzle
 sudoku --resume                   reopen the saved puzzle
 sudoku --battle ID                a beheer chat battle: the same puzzle for everyone
 sudoku --profile NAME             separate settings, stats, and save
+sudoku --verify < game.json       replay one recorded game and print the verdict as JSON
 ```
 
 Settings, statistics and the saved game live in `~/.config/sudoku/`. Every

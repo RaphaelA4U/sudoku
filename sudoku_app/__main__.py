@@ -33,7 +33,18 @@ def main() -> None:
         "--battle", type=int, metavar="ID",
         help="play chat battle ID (from beheer): everyone gets the same puzzle",
     )
+    parser.add_argument(
+        "--verify", action="store_true",
+        help="read one game record (a games.jsonl line) on stdin, replay it and print the verdict as JSON",
+    )
     args = parser.parse_args()
+
+    if args.verify:
+        # A pure check: no settings, no update check, no UI, no files written.
+        sys.dont_write_bytecode = True
+        from .verify import main as verify_main
+
+        sys.exit(verify_main(sys.stdin))
 
     if args.profile:
         os.environ["SUDOKU_PROFILE"] = args.profile
